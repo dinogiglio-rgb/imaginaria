@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { logout } from '../lib/auth'
+import logo from '../assets/logo.png'
 
 export default function Header({ user }) {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -22,16 +23,7 @@ export default function Header({ user }) {
     }}>
       {/* Logo */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <svg width="36" height="22" viewBox="0 0 120 72" fill="none">
-          <defs>
-            <linearGradient id="hg" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#FF7F6A" />
-              <stop offset="100%" stopColor="#A084E8" />
-            </linearGradient>
-          </defs>
-          <ellipse cx="38" cy="36" rx="32" ry="20" stroke="url(#hg)" strokeWidth="10" fill="none" strokeLinecap="round"/>
-          <ellipse cx="82" cy="36" rx="32" ry="20" stroke="url(#hg)" strokeWidth="10" fill="none" strokeLinecap="round" opacity="0.7"/>
-        </svg>
+        <img src={logo} alt="Imaginaria" style={{ width: '36px', height: '36px', objectFit: 'contain' }} />
         <span style={{
           fontFamily: 'Outfit, sans-serif',
           fontWeight: 800,
