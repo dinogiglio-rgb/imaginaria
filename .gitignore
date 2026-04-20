@@ -1,0 +1,22 @@
+# Dipendenze
+node_modules/
+
+# Build
+dist/
+
+# Variabili ambiente (MAI caricare su GitHub!)
+.env
+.env.local
+.env.production
+
+# Log
+*.log
+npm-debug.log*
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/

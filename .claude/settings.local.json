@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create *)",
+      "Bash(cp -r /c/Users/archo/imaginaria_tmp/. /c/Users/archo/imaginaria/)",
+      "Bash(rm -rf /c/Users/archo/imaginaria_tmp)",
+      "Bash(npm install *)",
+      "Bash(npx tailwindcss *)",
+      "Bash(./node_modules/.bin/tailwindcss init *)",
+      "Bash(npm run *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173)",
+      "Bash(kill %1)",
+      "Bash(timeout 5 node server.js)",
+      "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\(p.dependencies['@fal-ai/serverless-client'], p.dependencies['@fal-ai/client']\\)\")",
+      "Bash(python3 -c \"import json,sys; p=json.load\\(sys.stdin\\); print\\('main:', p.get\\('main'\\)\\); print\\('exports:', list\\(p.get\\('exports',{}\\).keys\\(\\)\\)[:5]\\)\")",
+      "Bash(npm uninstall *)",
+      "Bash(node server.js)",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git config *)"
+    ]
+  }
+}
