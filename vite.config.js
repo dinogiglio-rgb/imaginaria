@@ -13,6 +13,7 @@ export default defineConfig({
         'apple-touch-icon.png'
       ],
       manifest: {
+        version: '1.1.0',
         name: 'Imaginaria',
         short_name: 'Imaginaria',
         description: 'Immagina. Scatta. Crea.',
