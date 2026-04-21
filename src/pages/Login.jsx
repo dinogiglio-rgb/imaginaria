@@ -26,18 +26,9 @@ export default function Login() {
       justifyContent: 'center',
       padding: '24px'
     }}>
-      {/* Logo Möbius */}
+      {/* Logo */}
       <div style={{ marginBottom: '32px' }}>
-        <svg width="120" height="72" viewBox="0 0 120 72" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#FF7F6A" />
-              <stop offset="100%" stopColor="#A084E8" />
-            </linearGradient>
-          </defs>
-          <ellipse cx="38" cy="36" rx="32" ry="20" stroke="url(#g1)" strokeWidth="10" fill="none" strokeLinecap="round"/>
-          <ellipse cx="82" cy="36" rx="32" ry="20" stroke="url(#g1)" strokeWidth="10" fill="none" strokeLinecap="round" opacity="0.7"/>
-        </svg>
+        <img src="/logo-transparent.png" alt="Imaginaria" style={{ width: '120px', height: '120px', objectFit: 'contain' }} />
       </div>
 
       {/* Titolo */}

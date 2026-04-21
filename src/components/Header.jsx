@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { logout } from '../lib/auth'
-import logo from '../assets/logo.png'
 
 export default function Header({ user }) {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -23,7 +22,7 @@ export default function Header({ user }) {
     }}>
       {/* Logo */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <img src={logo} alt="Imaginaria" style={{ width: '36px', height: '36px', objectFit: 'contain' }} />
+        <img src="/logo-transparent.png" alt="Imaginaria" style={{ width: '36px', height: '36px', objectFit: 'contain' }} />
         <span style={{
           fontFamily: 'Outfit, sans-serif',
           fontWeight: 800,
