@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import RenderSection from '../components/RenderSection'
+import Viewer3D from '../components/Viewer3D'
 
 export default function Drawing({ user }) {
   const { id } = useParams()
@@ -25,6 +26,9 @@ export default function Drawing({ user }) {
   const [indicazioniStoria, setIndicazioniStoria] = useState('')
   const [storieSalvate, setStorieSalvate] = useState([])
   const [storiaEspansa, setStoriaEspansa] = useState(null)
+  const [generando3D, setGenerando3D] = useState(false)
+  const [modelUrl, setModelUrl] = useState(null)
+  const [mostraViewer, setMostraViewer] = useState(false)
 
   useEffect(() => {
     fetchDrawing()
@@ -188,6 +192,47 @@ export default function Drawing({ user }) {
       console.error('Errore storia:', err)
     } finally {
       setLoadingStoria(false)
+    }
+  }
+
+  const genera3D = async () => {
+    // Cerca il render completato più recente direttamente da Supabase
+    const { data: renderRows } = await supabase
+      .from('renders')
+      .select('result_url')
+      .eq('drawing_id', drawing.id)
+      .not('result_url', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+
+    const renderUrl = renderRows?.[0]?.result_url
+    if (!renderUrl) {
+      alert('Genera prima un render stilizzato!')
+      return
+    }
+
+    setGenerando3D(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/drawings/generate3d', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ render_url: renderUrl, drawing_id: drawing.id })
+      })
+      const data = await res.json()
+      if (data.model_url) {
+        setModelUrl(data.model_url)
+        setMostraViewer(true)
+      } else {
+        alert('Errore nella generazione 3D: ' + data.error)
+      }
+    } catch (err) {
+      alert('Errore: ' + err.message)
+    } finally {
+      setGenerando3D(false)
     }
   }
 
@@ -515,6 +560,30 @@ export default function Drawing({ user }) {
           drawingId={drawing?.id}
           hasAiPrompt={!!drawing?.ai_prompt_render}
         />
+
+        {/* Pulsante 3D */}
+        {drawing?.ai_title && (
+          <button
+            onClick={genera3D}
+            disabled={generando3D}
+            style={{
+              width: '100%', padding: '16px', borderRadius: '50px',
+              background: generando3D
+                ? '#ccc'
+                : 'linear-gradient(135deg, #A084E8, #FF7F6A)',
+              color: 'white', fontFamily: 'Outfit, sans-serif',
+              fontWeight: 700, fontSize: '1rem', border: 'none',
+              cursor: generando3D ? 'not-allowed' : 'pointer',
+              marginTop: '12px',
+              display: 'flex', alignItems: 'center',
+              justifyContent: 'center', gap: '8px'
+            }}
+          >
+            {generando3D
+              ? <><div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '3px solid rgba(255,255,255,0.3)', borderTopColor: 'white', animation: 'spin 0.8s linear infinite' }} /> Generazione 3D in corso (~60 sec)...</>
+              : '🖨️ Trasforma in 3D'}
+          </button>
+        )}
 
         {errore && (
           <p style={{ color: '#FF7F6A', fontFamily: 'Inter, sans-serif', fontSize: '0.9rem', marginTop: '16px', textAlign: 'center' }}>
@@ -871,6 +940,13 @@ export default function Drawing({ user }) {
             )}
           </div>
         </div>
+      )}
+
+      {mostraViewer && modelUrl && (
+        <Viewer3D
+          modelUrl={modelUrl}
+          onClose={() => setMostraViewer(false)}
+        />
       )}
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
