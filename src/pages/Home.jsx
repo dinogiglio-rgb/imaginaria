@@ -17,10 +17,12 @@ export default function Home({ user }) {
   })
   const [libroAperto, setLibroAperto] = useState(false)
   const [tutteLeStorie, setTutteLeStorie] = useState([])
+  const [storieCombinate, setStorieCombinate] = useState([])
   const [storieSelezionate, setStorieSelezionate] = useState([])
   const [storiaUnita, setStoriaUnita] = useState(null)
   const [loadingUnione, setLoadingUnione] = useState(false)
   const [indicazioniUnione, setIndicazioniUnione] = useState('')
+  const [titoloUnione, setTitoloUnione] = useState('')
   const navigate = useNavigate()
 
   useEffect(() => { fetchDrawings() }, [])
@@ -93,8 +95,16 @@ export default function Home({ user }) {
     const { data } = await supabase
       .from('stories')
       .select('*, drawings(ai_title, original_url, processed_url)')
+      .neq('tipo', 'combinata')
       .order('created_at', { ascending: false })
     setTutteLeStorie(data || [])
+
+    const { data: combinate } = await supabase
+      .from('stories')
+      .select('*')
+      .eq('tipo', 'combinata')
+      .order('created_at', { ascending: false })
+    setStorieCombinate(combinate || [])
   }
 
   const handleUnisciStorie = async () => {
@@ -111,13 +121,15 @@ export default function Home({ user }) {
         },
         body: JSON.stringify({
           storyIds: storieSelezionate,
-          indicazioni: indicazioniUnione
+          indicazioni: indicazioniUnione,
+          titolo: titoloUnione || null
         })
       })
 
       if (!res.ok) throw new Error('Unione fallita')
       const result = await res.json()
       setStoriaUnita(result.storia)
+      fetchTutteLeStorie()
     } catch (err) {
       console.error('Errore unione:', err)
     } finally {
@@ -486,7 +498,20 @@ export default function Home({ user }) {
                 </div>
 
                 {storieSelezionate.length >= 2 && !storiaUnita && (
-                  <div style={{ marginBottom: '16px' }}>
+                  <div style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <input
+                      type="text"
+                      placeholder="Titolo della storia (es: L'avventura nel bosco magico)"
+                      value={titoloUnione}
+                      onChange={e => setTitoloUnione(e.target.value)}
+                      style={{
+                        width: '100%', padding: '12px 16px',
+                        borderRadius: '14px', border: '2px solid #e8e4df',
+                        fontFamily: 'Inter, sans-serif', fontSize: '0.9rem',
+                        color: '#2D2D2D', outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                    />
                     <textarea
                       placeholder={'Es: "falle incontrare in un castello magico"'}
                       value={indicazioniUnione}
@@ -578,12 +603,56 @@ export default function Home({ user }) {
               </>
             )}
 
+            {storieCombinate.length > 0 && (
+              <div style={{ marginBottom: '20px' }}>
+                <h4 style={{
+                  fontFamily: 'Outfit, sans-serif', fontWeight: 800,
+                  fontSize: '1rem', color: '#2D2D2D', margin: '0 0 12px 0'
+                }}>
+                  📖 Storie di Giulio
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {storieCombinate.map(s => (
+                    <div key={s.id} style={{
+                      backgroundColor: '#FAF9F6', borderRadius: '16px',
+                      padding: '16px', border: '2px solid #f0ede8'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                        <p style={{
+                          fontFamily: 'Outfit, sans-serif', fontWeight: 700,
+                          fontSize: '0.92rem', color: '#2D2D2D', margin: 0,
+                          flex: 1, marginRight: '8px'
+                        }}>
+                          {s.indicazioni || 'Storia combinata'}
+                        </p>
+                        <p style={{
+                          fontFamily: 'Inter, sans-serif', fontSize: '0.72rem',
+                          color: '#bbb', margin: 0, whiteSpace: 'nowrap', flexShrink: 0
+                        }}>
+                          {new Date(s.created_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </p>
+                      </div>
+                      <p style={{
+                        fontFamily: 'Inter, sans-serif', fontSize: '0.82rem',
+                        color: '#666', lineHeight: 1.7, margin: 0,
+                        display: '-webkit-box', WebkitLineClamp: 4,
+                        WebkitBoxOrient: 'vertical', overflow: 'hidden'
+                      }}>
+                        {s.testo}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <button
               onClick={() => {
                 setLibroAperto(false)
                 setStorieSelezionate([])
                 setStoriaUnita(null)
                 setIndicazioniUnione('')
+                setTitoloUnione('')
               }}
               style={{
                 width: '100%', padding: '14px', background: '#f5f3f0',

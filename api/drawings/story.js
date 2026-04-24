@@ -27,7 +27,7 @@ export default async function handler(req, res) {
 
     if (dbError || !drawing) return res.status(404).json({ error: 'Disegno non trovato' })
 
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 55000 })
     const descrizione = indicazioni || drawing.ai_description || drawing.ai_title || 'un disegno di un bambino'
     const titolo = drawing.ai_title || 'il disegno'
 
@@ -68,8 +68,8 @@ Inizia direttamente con la storia, senza titolo e senza introduzioni.`
     }
 
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 3000,
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2048,
       messages: [{ role: 'user', content: prompt }]
     })
 

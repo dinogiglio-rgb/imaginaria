@@ -16,7 +16,7 @@ export default async function handler(req, res) {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
     if (authError || !user) return res.status(401).json({ error: 'Token non valido' })
 
-    const { storyIds, indicazioni } = req.body
+    const { storyIds, indicazioni, titolo } = req.body
     if (!storyIds || storyIds.length < 2) return res.status(400).json({ error: 'Servono almeno 2 storie' })
 
     // Carica le storie selezionate con i loro disegni
@@ -62,7 +62,21 @@ Inizia direttamente con la storia, senza titolo e senza introduzioni.`
 
     const storiaUnita = response.content[0].text.trim()
 
-    return res.status(200).json({ storia: storiaUnita })
+    const { data: storySalvata, error: saveError } = await supabase
+      .from('stories')
+      .insert({
+        drawing_id: null,
+        author_id: user.id,
+        tipo: 'combinata',
+        testo: storiaUnita,
+        indicazioni: titolo || null,
+      })
+      .select()
+      .single()
+
+    if (saveError) console.error('Errore salvataggio storia combinata:', saveError)
+
+    return res.status(200).json({ storia: storiaUnita, id: storySalvata?.id })
 
   } catch (err) {
     console.error('Errore combinazione storie:', err)
