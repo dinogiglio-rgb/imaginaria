@@ -160,7 +160,7 @@ export default function Home({ user }) {
 
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
-              onClick={() => { setLibroAperto(true); fetchTutteLeStorie() }}
+              onClick={() => navigate('/book')}
               style={{
                 display: 'flex', alignItems: 'center', gap: '6px',
                 padding: '8px 14px',

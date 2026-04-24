@@ -6,6 +6,7 @@ import AuthCallback from './pages/AuthCallback'
 import Home from './pages/Home'
 import Upload from './pages/Upload'
 import Drawing from './pages/Drawing'
+import Book from './pages/Book'
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -53,6 +54,7 @@ export default function App() {
         <Route path="/" element={user ? <Home user={user} /> : <Navigate to="/login" />} />
         <Route path="/upload" element={user ? <Upload user={user} /> : <Navigate to="/login" />} />
         <Route path="/drawing/:id" element={user ? <Drawing user={user} /> : <Navigate to="/login" />} />
+        <Route path="/book" element={user ? <Book user={user} /> : <Navigate to="/login" />} />
       </Routes>
     </BrowserRouter>
   )
