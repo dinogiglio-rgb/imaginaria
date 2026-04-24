@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Header from '../components/Header'
 import StorieInsieme from '../components/StorieInsieme'
+import VideoStoria from '../components/VideoStoria'
 
 export default function Book({ user }) {
   const navigate = useNavigate()
@@ -205,6 +206,16 @@ export default function Book({ user }) {
                         }}>
                           {aperta ? 'Chiudi ↑' : 'Leggi tutto ↓'}
                         </p>
+
+                        {aperta && (
+                          <div onClick={e => e.stopPropagation()}>
+                            <VideoStoria
+                              renderUrl={s.drawings?.processed_url || s.drawings?.original_url}
+                              storyText={s.testo}
+                              drawingTitle={s.drawings?.ai_title || 'storia'}
+                            />
+                          </div>
+                        )}
                       </div>
                     )
                   })}

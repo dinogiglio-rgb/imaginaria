@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import RenderSection from '../components/RenderSection'
 import Viewer3D from '../components/Viewer3D'
+import VideoStoria from '../components/VideoStoria'
 
 export default function Drawing({ user }) {
   const { id } = useParams()
@@ -547,6 +548,13 @@ export default function Drawing({ user }) {
                       >
                         📋 Copia
                       </button>
+                      <div onClick={e => e.stopPropagation()}>
+                        <VideoStoria
+                          renderUrl={drawing?.renders?.find(r => r.result_url)?.result_url || drawing?.processed_url}
+                          storyText={s.testo}
+                          drawingTitle={drawing?.ai_title || drawing?.title}
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -878,6 +886,11 @@ export default function Drawing({ user }) {
                     🔄 Rigenera
                   </button>
                 </div>
+                <VideoStoria
+                  renderUrl={drawing?.renders?.find(r => r.result_url)?.result_url || drawing?.processed_url}
+                  storyText={storia}
+                  drawingTitle={drawing?.ai_title || drawing?.title}
+                />
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

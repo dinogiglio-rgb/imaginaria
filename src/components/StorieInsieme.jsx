@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import VideoStoria from './VideoStoria'
 
 const TEMI = [
   '🌟 Avventura', '🤝 Amicizia', '🔮 Magia', '🦁 Animali',
@@ -17,11 +18,24 @@ export default function StorieInsieme() {
   const [temaCustom, setTemaCustom] = useState('')
   const [titolo, setTitolo] = useState('')
   const [generando, setGenerando] = useState(false)
+  const [renderDefault, setRenderDefault] = useState(null)
 
   useEffect(() => {
     caricaStorie()
     caricaPersonaggi()
+    caricaRenderDefault()
   }, [])
+
+  const caricaRenderDefault = async () => {
+    const { data } = await supabase
+      .from('renders')
+      .select('result_url')
+      .not('result_url', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+    if (data?.result_url) setRenderDefault(data.result_url)
+  }
 
   const caricaStorie = async () => {
     const { data } = await supabase
@@ -288,6 +302,16 @@ export default function StorieInsieme() {
                   }}>
                     {aperta ? 'Chiudi ↑' : 'Leggi tutto ↓'}
                   </p>
+
+                  {aperta && (
+                    <div onClick={e => e.stopPropagation()}>
+                      <VideoStoria
+                        renderUrl={renderDefault}
+                        storyText={s.testo}
+                        drawingTitle={s.indicazioni || 'storia insieme'}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {i < storie.length - 1 && (

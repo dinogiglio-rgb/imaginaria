@@ -7,6 +7,9 @@
     "api/drawings/generate3d.js": {
       "maxDuration": 120
     },
+    "api/drawings/generatevideo.js": {
+      "maxDuration": 120
+    },
     "api/**/*.js": {
       "maxDuration": 60
     }
