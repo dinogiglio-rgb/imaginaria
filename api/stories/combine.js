@@ -18,20 +18,14 @@ export default async function handler(req, res) {
 
     const { storyIds, indicazioni, titolo, personaggi, tema } = req.body
 
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 50000 })
     let prompt = ''
 
     if (personaggi && personaggi.length >= 2) {
-      // Flusso nuovo: genera storia da lista personaggi + tema
       const listaPersonaggi = personaggi.join(', ')
-      prompt = `Scrivi una storia per bambini di circa 800 parole con i seguenti personaggi: ${listaPersonaggi}.
-Il tema della storia è: ${tema}.
-La storia deve essere magica, coinvolgente e adatta a bambini di 5 anni.
-Usa uno stile narrativo caldo e poetico.
-Inizia direttamente con la storia, senza titolo e senza introduzioni.`
+      prompt = `Scrivi una storia per bambini di circa 400 parole con questi personaggi: ${listaPersonaggi}. Tema: ${tema}. Stile magico e poetico, adatta a bambini di 5 anni. Vai dritto alla storia senza introduzioni.`
 
     } else if (storyIds && storyIds.length >= 2) {
-      // Flusso vecchio: combina storie esistenti per ID
       const { data: storie, error: dbError } = await supabase
         .from('stories')
         .select('*, drawings(ai_title, ai_description)')
@@ -40,35 +34,24 @@ Inizia direttamente con la storia, senza titolo e senza introduzioni.`
       if (dbError || !storie) return res.status(404).json({ error: 'Storie non trovate' })
 
       const riassuntoStorie = storie.map((s, i) =>
-        `STORIA ${i + 1} — "${s.drawings?.ai_title || 'Senza titolo'}":
-${s.testo}`
-      ).join('\n\n---\n\n')
+        `STORIA ${i + 1} — "${s.drawings?.ai_title || 'Senza titolo'}": ${s.testo.slice(0, 300)}`
+      ).join('\n\n')
 
-      const promptIndicazioni = indicazioni ? `\nIndicazioni speciali: "${indicazioni}"` : ''
+      const promptIndicazioni = indicazioni ? ` Indicazioni: "${indicazioni}".` : ''
 
-      prompt = `Sei un narratore magico che scrive favole per bambini.
-
-Hai queste ${storie.length} storie con personaggi diversi:
+      prompt = `Scrivi una storia per bambini di circa 400 parole che unisce questi personaggi in un'unica avventura magica:
 
 ${riassuntoStorie}
 ${promptIndicazioni}
-
-Scrivi una NUOVA STORIA UNICA (8-10 paragrafi) in italiano che:
-- Unisce TUTTI i personaggi delle storie in un'unica avventura
-- Fa incontrare i personaggi in modo naturale e magico
-- Ha un intreccio coinvolgente con un finale felice
-- Usa linguaggio poetico e adatto a bambini
-- Fa sentire ogni personaggio importante
-
-Inizia direttamente con la storia, senza titolo e senza introduzioni.`
+Vai dritto alla storia senza introduzioni.`
 
     } else {
       return res.status(400).json({ error: 'Servono almeno 2 storie o 2 personaggi' })
     }
 
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 2048,
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1500,
       messages: [{ role: 'user', content: prompt }]
     })
 
@@ -88,7 +71,7 @@ Inizia direttamente con la storia, senza titolo e senza introduzioni.`
 
     if (saveError) console.error('Errore salvataggio storia combinata:', saveError)
 
-    return res.status(200).json({ storia: storiaUnita, id: storySalvata?.id })
+    return res.status(200).json({ success: true, storia: storiaUnita, testo: storiaUnita, id: storySalvata?.id })
 
   } catch (err) {
     console.error('Errore combinazione storie:', err)

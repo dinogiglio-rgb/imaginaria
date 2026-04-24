@@ -99,7 +99,8 @@ export default function StorieInsieme() {
       setTemaCustom('')
       setTitolo('')
     } catch (err) {
-      alert('Errore: ' + err.message)
+      console.error('Errore:', err)
+      alert('Errore nella generazione: ' + err.message + '\nRiprova o accorcia la selezione di personaggi.')
     } finally {
       setGenerando(false)
     }
