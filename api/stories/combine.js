@@ -16,29 +16,37 @@ export default async function handler(req, res) {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
     if (authError || !user) return res.status(401).json({ error: 'Token non valido' })
 
-    const { storyIds, indicazioni, titolo } = req.body
-    if (!storyIds || storyIds.length < 2) return res.status(400).json({ error: 'Servono almeno 2 storie' })
-
-    // Carica le storie selezionate con i loro disegni
-    const { data: storie, error: dbError } = await supabase
-      .from('stories')
-      .select('*, drawings(ai_title, ai_description)')
-      .in('id', storyIds)
-
-    if (dbError || !storie) return res.status(404).json({ error: 'Storie non trovate' })
+    const { storyIds, indicazioni, titolo, personaggi, tema } = req.body
 
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    let prompt = ''
 
-    const riassuntoStorie = storie.map((s, i) =>
-      `STORIA ${i + 1} — "${s.drawings?.ai_title || 'Senza titolo'}":
+    if (personaggi && personaggi.length >= 2) {
+      // Flusso nuovo: genera storia da lista personaggi + tema
+      const listaPersonaggi = personaggi.join(', ')
+      prompt = `Scrivi una storia per bambini di circa 800 parole con i seguenti personaggi: ${listaPersonaggi}.
+Il tema della storia è: ${tema}.
+La storia deve essere magica, coinvolgente e adatta a bambini di 5 anni.
+Usa uno stile narrativo caldo e poetico.
+Inizia direttamente con la storia, senza titolo e senza introduzioni.`
+
+    } else if (storyIds && storyIds.length >= 2) {
+      // Flusso vecchio: combina storie esistenti per ID
+      const { data: storie, error: dbError } = await supabase
+        .from('stories')
+        .select('*, drawings(ai_title, ai_description)')
+        .in('id', storyIds)
+
+      if (dbError || !storie) return res.status(404).json({ error: 'Storie non trovate' })
+
+      const riassuntoStorie = storie.map((s, i) =>
+        `STORIA ${i + 1} — "${s.drawings?.ai_title || 'Senza titolo'}":
 ${s.testo}`
-    ).join('\n\n---\n\n')
+      ).join('\n\n---\n\n')
 
-    const promptIndicazioni = indicazioni
-      ? `\nIndicazioni speciali: "${indicazioni}"`
-      : ''
+      const promptIndicazioni = indicazioni ? `\nIndicazioni speciali: "${indicazioni}"` : ''
 
-    const prompt = `Sei un narratore magico che scrive favole per bambini.
+      prompt = `Sei un narratore magico che scrive favole per bambini.
 
 Hai queste ${storie.length} storie con personaggi diversi:
 
@@ -53,6 +61,10 @@ Scrivi una NUOVA STORIA UNICA (8-10 paragrafi) in italiano che:
 - Fa sentire ogni personaggio importante
 
 Inizia direttamente con la storia, senza titolo e senza introduzioni.`
+
+    } else {
+      return res.status(400).json({ error: 'Servono almeno 2 storie o 2 personaggi' })
+    }
 
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
@@ -80,6 +92,6 @@ Inizia direttamente con la storia, senza titolo e senza introduzioni.`
 
   } catch (err) {
     console.error('Errore combinazione storie:', err)
-    return res.status(500).json({ error: 'Errore interno del server' })
+    return res.status(500).json({ error: err.message })
   }
 }
