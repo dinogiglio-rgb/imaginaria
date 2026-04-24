@@ -1,9 +1,4 @@
-import { useEffect } from 'react'
-
 export default function Viewer3D({ modelUrl, onClose }) {
-  useEffect(() => {
-    import('@google/model-viewer')
-  }, [])
 
   const downloadGlb = () => {
     const link = document.createElement('a')
