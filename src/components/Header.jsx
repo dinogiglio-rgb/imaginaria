@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { logout } from '../lib/auth'
-import LogoMobius from './LogoMobius'
 
 export default function Header({ user }) {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -23,7 +22,7 @@ export default function Header({ user }) {
     }}>
       {/* Logo */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <LogoMobius size={32} />
+        <img src="/logo-transparent.png" alt="Imaginaria" style={{ height: '32px', width: 'auto' }} />
         <span style={{
           fontFamily: 'Outfit, sans-serif',
           fontWeight: 800,

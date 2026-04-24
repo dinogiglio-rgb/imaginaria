@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { loginWithGoogle } from '../lib/auth'
-import LogoMobius from '../components/LogoMobius'
 
 export default function Login() {
   const [loading, setLoading] = useState(false)
@@ -29,7 +28,7 @@ export default function Login() {
     }}>
       {/* Logo */}
       <div style={{ marginBottom: '32px' }}>
-        <LogoMobius size={72} />
+        <img src="/logo-transparent.png" alt="Imaginaria" style={{ height: '64px', width: 'auto' }} />
       </div>
 
       {/* Titolo */}
