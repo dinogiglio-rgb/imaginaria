@@ -4,20 +4,20 @@ import { supabase } from '../lib/supabase';
 const STILI = [
   {
     id: 'cartoon',
-    label: '🎬 Pixar',
-    desc: 'Personaggio 3D animato',
+    label: '🎬 Cartoon',
+    desc: 'Stile cartone animato',
     color: 'from-[#FF7F6A] to-[#ff9a8b]'
   },
   {
     id: 'toy',
-    label: '🧸 Peluche',
-    desc: 'Giocattolo colorato',
+    label: '🧸 Toy',
+    desc: 'Giocattolo morbido',
     color: 'from-[#A084E8] to-[#b89ff0]'
   },
   {
     id: 'realistic',
-    label: '📸 Realistico',
-    desc: 'Foto cinematografica',
+    label: '📸 Realistic',
+    desc: 'Foto realistica',
     color: 'from-[#4ecdc4] to-[#B2EBF2]'
   }
 ];

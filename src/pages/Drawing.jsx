@@ -30,6 +30,7 @@ export default function Drawing({ user }) {
   const [generando3D, setGenerando3D] = useState(false)
   const [modelUrl, setModelUrl] = useState(null)
   const [mostraViewer, setMostraViewer] = useState(false)
+  const [stileSceltoVideo, setStileSceltoVideo] = useState(null)
 
   useEffect(() => {
     fetchDrawing()
@@ -549,8 +550,31 @@ export default function Drawing({ user }) {
                         📋 Copia
                       </button>
                       <div onClick={e => e.stopPropagation()}>
+                        {drawing?.renders?.filter(r => r.result_url).length > 1 && (
+                          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                            {drawing.renders.filter(r => r.result_url).map(r => (
+                              <button
+                                key={r.style}
+                                onClick={() => setStileSceltoVideo(r.style)}
+                                style={{
+                                  padding: '6px 14px', borderRadius: '50px', fontSize: '0.8rem',
+                                  fontFamily: 'Outfit, sans-serif', fontWeight: 700, cursor: 'pointer',
+                                  border: `2px solid ${stileSceltoVideo === r.style ? '#A084E8' : '#e0e0e0'}`,
+                                  background: stileSceltoVideo === r.style ? '#A084E8' : 'transparent',
+                                  color: stileSceltoVideo === r.style ? 'white' : '#888'
+                                }}
+                              >
+                                {r.style === 'cartoon' ? '🎬 Cartoon' : r.style === 'toy' ? '🧸 Toy' : '📸 Realistic'}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                         <VideoStoria
-                          renderUrl={drawing?.renders?.find(r => r.result_url)?.result_url || drawing?.processed_url}
+                          renderUrl={
+                            stileSceltoVideo
+                              ? drawing?.renders?.find(r => r.style === stileSceltoVideo && r.result_url)?.result_url
+                              : drawing?.renders?.find(r => r.result_url)?.result_url || drawing?.processed_url
+                          }
                           storyText={s.testo}
                           drawingTitle={drawing?.ai_title || drawing?.title}
                         />
@@ -886,8 +910,31 @@ export default function Drawing({ user }) {
                     🔄 Rigenera
                   </button>
                 </div>
+                {drawing?.renders?.filter(r => r.result_url).length > 1 && (
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                    {drawing.renders.filter(r => r.result_url).map(r => (
+                      <button
+                        key={r.style}
+                        onClick={() => setStileSceltoVideo(r.style)}
+                        style={{
+                          padding: '6px 14px', borderRadius: '50px', fontSize: '0.8rem',
+                          fontFamily: 'Outfit, sans-serif', fontWeight: 700, cursor: 'pointer',
+                          border: `2px solid ${stileSceltoVideo === r.style ? '#A084E8' : '#e0e0e0'}`,
+                          background: stileSceltoVideo === r.style ? '#A084E8' : 'transparent',
+                          color: stileSceltoVideo === r.style ? 'white' : '#888'
+                        }}
+                      >
+                        {r.style === 'cartoon' ? '🎬 Cartoon' : r.style === 'toy' ? '🧸 Toy' : '📸 Realistic'}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <VideoStoria
-                  renderUrl={drawing?.renders?.find(r => r.result_url)?.result_url || drawing?.processed_url}
+                  renderUrl={
+                    stileSceltoVideo
+                      ? drawing?.renders?.find(r => r.style === stileSceltoVideo && r.result_url)?.result_url
+                      : drawing?.renders?.find(r => r.result_url)?.result_url || drawing?.processed_url
+                  }
                   storyText={storia}
                   drawingTitle={drawing?.ai_title || drawing?.title}
                 />
