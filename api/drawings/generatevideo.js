@@ -1,4 +1,5 @@
 import { fal } from '@fal-ai/client'
+import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 
 export default async function handler(req, res) {
@@ -21,10 +22,35 @@ export default async function handler(req, res) {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
     if (authError || !user) return res.status(401).json({ error: 'Token non valido' })
 
-    fal.config({ credentials: process.env.FAL_KEY })
+    // STEP 1 — Claude genera un prompt video personalizzato dalla storia
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-    const promptWords = story_text.split(' ').slice(0, 40).join(' ')
-    const videoPrompt = `Animated children's illustration, magical and colorful, bring to life this scene: ${promptWords}. Soft gentle animation, dreamy atmosphere, warm colors, children's book style, smooth motion.`
+    const promptResponse = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 200,
+      messages: [{
+        role: 'user',
+        content: `Sei un esperto di prompt per video AI.
+Leggi questa storia per bambini e crea un prompt in inglese
+per animare l'immagine del personaggio principale.
+Il prompt deve descrivere:
+- Il movimento del personaggio (cosa fa, come si muove)
+- L'atmosfera e le emozioni della scena principale
+- Effetti visivi magici se presenti nella storia
+- Lo stile: children's book illustration, soft animation, warm colors
+
+Storia: ${story_text.slice(0, 600)}
+
+Rispondi SOLO con il prompt video in inglese, massimo 80 parole,
+niente spiegazioni.`
+      }]
+    })
+
+    const videoPrompt = promptResponse.content[0].text.trim()
+    console.log('Prompt video generato:', videoPrompt)
+
+    // STEP 2 — Avvia job Kling con il prompt personalizzato
+    fal.config({ credentials: process.env.FAL_KEY })
 
     const { request_id } = await fal.queue.submit(
       'fal-ai/kling-video/v1.6/standard/image-to-video',
@@ -32,7 +58,7 @@ export default async function handler(req, res) {
         input: {
           image_url: render_url,
           prompt: videoPrompt,
-          duration: '5',
+          duration: '10',
           aspect_ratio: '1:1',
         }
       }
