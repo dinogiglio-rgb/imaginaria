@@ -1,6 +1,12 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 
+console.log('ENV CHECK:', {
+  hasAnthropicKey: !!process.env.ANTHROPIC_API_KEY,
+  hasFalKey: !!process.env.FAL_KEY,
+  hasSupabase: !!process.env.SUPABASE_SERVICE_ROLE_KEY
+})
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Metodo non consentito' })
 
@@ -74,7 +80,14 @@ Vai dritto alla storia senza introduzioni.`
     return res.status(200).json({ success: true, storia: storiaUnita, testo: storiaUnita, id: storySalvata?.id })
 
   } catch (err) {
-    console.error('Errore combinazione storie:', err)
-    return res.status(500).json({ error: err.message })
+    console.error('ERRORE DETTAGLIATO:', {
+      message: err.message,
+      stack: err.stack,
+      cause: err.cause
+    })
+    return res.status(500).json({
+      error: err.message,
+      detail: err.stack?.split('\n')[0]
+    })
   }
 }

@@ -42,7 +42,14 @@ export default async function handler(req, res) {
     })
 
   } catch (err) {
-    console.error('Errore video:', err)
-    return res.status(500).json({ error: err.message })
+    console.error('ERRORE DETTAGLIATO:', {
+      message: err.message,
+      stack: err.stack,
+      cause: err.cause
+    })
+    return res.status(500).json({
+      error: err.message,
+      detail: err.stack?.split('\n')[0]
+    })
   }
 }

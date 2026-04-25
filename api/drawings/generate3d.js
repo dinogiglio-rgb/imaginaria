@@ -38,7 +38,14 @@ export default async function handler(req, res) {
     return res.status(200).json({ model_url: modelUrl, drawing_id })
 
   } catch (err) {
-    console.error('Errore 3D:', err)
-    return res.status(500).json({ error: err.message })
+    console.error('ERRORE DETTAGLIATO:', {
+      message: err.message,
+      stack: err.stack,
+      cause: err.cause
+    })
+    return res.status(500).json({
+      error: err.message,
+      detail: err.stack?.split('\n')[0]
+    })
   }
 }
