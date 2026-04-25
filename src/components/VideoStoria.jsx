@@ -1,13 +1,30 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
-export default function VideoStoria({ renderUrl, storyText, drawingTitle }) {
+export default function VideoStoria({ renderUrl, storyText, drawingTitle, drawingId, style }) {
   const [fase, setFase] = useState('idle') // idle | avvio | attesa | completato | errore
   const [videoUrl, setVideoUrl] = useState(null)
   const [errore, setErrore] = useState(null)
   const [secondi, setSecondi] = useState(0)
   const intervalRef = useRef(null)
   const contatoreRef = useRef(null)
+
+  useEffect(() => {
+    if (drawingId && style) {
+      supabase
+        .from('renders')
+        .select('video_url')
+        .eq('drawing_id', drawingId)
+        .eq('style', style)
+        .single()
+        .then(({ data }) => {
+          if (data?.video_url) {
+            setVideoUrl(data.video_url)
+            setFase('completato')
+          }
+        })
+    }
+  }, [drawingId, style])
 
   const avviaVideo = async () => {
     if (!renderUrl) {
@@ -49,7 +66,7 @@ export default function VideoStoria({ renderUrl, storyText, drawingTitle }) {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${session.access_token}`
             },
-            body: JSON.stringify({ request_id: data.request_id })
+            body: JSON.stringify({ request_id: data.request_id, drawing_id: drawingId, style })
           })
           const statusData = await statusRes.json()
 
@@ -82,9 +99,10 @@ export default function VideoStoria({ renderUrl, storyText, drawingTitle }) {
   }
 
   const scaricaVideo = () => {
+    const proxyUrl = `/api/drawings/download?url=${encodeURIComponent(videoUrl)}&filename=${encodeURIComponent((drawingTitle || 'storia') + '.mp4')}`
     const link = document.createElement('a')
-    link.href = videoUrl
-    link.download = `${drawingTitle || 'storia'}-video.mp4`
+    link.href = proxyUrl
+    link.download = (drawingTitle || 'storia') + '.mp4'
     link.click()
   }
 

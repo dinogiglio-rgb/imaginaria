@@ -577,6 +577,8 @@ export default function Drawing({ user }) {
                           }
                           storyText={s.testo}
                           drawingTitle={drawing?.ai_title || drawing?.title}
+                          drawingId={drawing?.id}
+                          style={stileSceltoVideo || drawing?.renders?.find(r => r.result_url)?.style}
                         />
                       </div>
                     </div>
@@ -937,6 +939,8 @@ export default function Drawing({ user }) {
                   }
                   storyText={storia}
                   drawingTitle={drawing?.ai_title || drawing?.title}
+                  drawingId={drawing?.id}
+                  style={stileSceltoVideo || drawing?.renders?.find(r => r.result_url)?.style}
                 />
               </div>
             ) : (

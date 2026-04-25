@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   const token = req.headers.authorization?.replace('Bearer ', '')
   if (!token) return res.status(401).json({ error: 'Non autorizzato' })
 
-  const { request_id } = req.body
+  const { request_id, drawing_id, style } = req.body
   if (!request_id) return res.status(400).json({ error: 'request_id mancante' })
 
   const supabase = createClient(
@@ -31,9 +31,20 @@ export default async function handler(req, res) {
         'fal-ai/kling-video/v1.6/standard/image-to-video',
         { requestId: request_id }
       )
+
+      const videoUrl = result.data.video.url
+
+      if (drawing_id && style) {
+        await supabase
+          .from('renders')
+          .update({ video_url: videoUrl })
+          .eq('drawing_id', drawing_id)
+          .eq('style', style)
+      }
+
       return res.status(200).json({
         status: 'completed',
-        video_url: result.data.video.url
+        video_url: videoUrl
       })
     }
 

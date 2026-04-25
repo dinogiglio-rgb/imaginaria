@@ -1,8 +1,9 @@
 export default function Viewer3D({ modelUrl, onClose }) {
 
   const downloadGlb = () => {
+    const proxyUrl = `/api/drawings/download?url=${encodeURIComponent(modelUrl)}&filename=disegno-3d.glb`
     const link = document.createElement('a')
-    link.href = modelUrl
+    link.href = proxyUrl
     link.download = 'disegno-3d.glb'
     link.click()
   }
