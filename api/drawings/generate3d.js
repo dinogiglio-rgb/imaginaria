@@ -21,18 +21,17 @@ export default async function handler(req, res) {
 
     fal.config({ credentials: process.env.FAL_KEY })
 
-    const result = await fal.subscribe('fal-ai/tsr-v2', {
+    const result = await fal.subscribe('fal-ai/triposr', {
       input: {
         image_url: render_url,
-        output_format: 'glb',
-        do_texture: true,
-        texture_resolution: 1024,
+        do_remove_background: true,
+        foreground_ratio: 0.85,
       },
       pollInterval: 3000,
       timeout: 120000,
     })
 
-    const modelUrl = result.data?.model_url || result.data?.model_mesh?.url
+    const modelUrl = result.data.model_mesh.url
     if (!modelUrl) throw new Error('Nessun modello 3D generato')
 
     return res.status(200).json({ model_url: modelUrl, drawing_id })
