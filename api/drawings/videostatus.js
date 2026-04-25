@@ -7,10 +7,8 @@ export default async function handler(req, res) {
   const token = req.headers.authorization?.replace('Bearer ', '')
   if (!token) return res.status(401).json({ error: 'Non autorizzato' })
 
-  const { render_url, story_text, drawing_title } = req.body
-  if (!render_url || !story_text) {
-    return res.status(400).json({ error: 'render_url e story_text obbligatori' })
-  }
+  const { request_id } = req.body
+  if (!request_id) return res.status(400).json({ error: 'request_id mancante' })
 
   const supabase = createClient(
     process.env.VITE_SUPABASE_URL,
@@ -23,22 +21,27 @@ export default async function handler(req, res) {
 
     fal.config({ credentials: process.env.FAL_KEY })
 
-    const promptWords = story_text.split(' ').slice(0, 40).join(' ')
-    const videoPrompt = `Animated children's illustration, magical and colorful, bring to life this scene: ${promptWords}. Soft gentle animation, dreamy atmosphere, warm colors, children's book style, smooth motion.`
-
-    const { request_id } = await fal.queue.submit(
+    const status = await fal.queue.status(
       'fal-ai/kling-video/v1.6/standard/image-to-video',
-      {
-        input: {
-          image_url: render_url,
-          prompt: videoPrompt,
-          duration: '5',
-          aspect_ratio: '1:1',
-        }
-      }
+      { requestId: request_id }
     )
 
-    return res.status(200).json({ request_id })
+    if (status.status === 'COMPLETED') {
+      const result = await fal.queue.result(
+        'fal-ai/kling-video/v1.6/standard/image-to-video',
+        { requestId: request_id }
+      )
+      return res.status(200).json({
+        status: 'completed',
+        video_url: result.data.video.url
+      })
+    }
+
+    if (status.status === 'FAILED') {
+      return res.status(200).json({ status: 'failed', error: 'Generazione fallita su fal.ai' })
+    }
+
+    return res.status(200).json({ status: 'processing' })
 
   } catch (err) {
     console.error('ERRORE DETTAGLIATO:', {

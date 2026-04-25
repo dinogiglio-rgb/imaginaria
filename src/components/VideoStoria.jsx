@@ -1,20 +1,25 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 
 export default function VideoStoria({ renderUrl, storyText, drawingTitle }) {
-  const [generando, setGenerando] = useState(false)
+  const [fase, setFase] = useState('idle') // idle | avvio | attesa | completato | errore
   const [videoUrl, setVideoUrl] = useState(null)
   const [errore, setErrore] = useState(null)
+  const [secondi, setSecondi] = useState(0)
+  const intervalRef = useRef(null)
+  const contatoreRef = useRef(null)
 
-  const generaVideo = async () => {
+  const avviaVideo = async () => {
     if (!renderUrl) {
-      alert('Questo disegno non ha ancora un render stilizzato. Generane uno prima!')
+      alert('Genera prima un render stilizzato!')
       return
     }
-    setGenerando(true)
+    setFase('avvio')
     setErrore(null)
+    setSecondi(0)
     try {
       const { data: { session } } = await supabase.auth.getSession()
+
       const res = await fetch('/api/drawings/generatevideo', {
         method: 'POST',
         headers: {
@@ -29,11 +34,50 @@ export default function VideoStoria({ renderUrl, storyText, drawingTitle }) {
       })
       const data = await res.json()
       if (data.error) throw new Error(data.error)
-      setVideoUrl(data.video_url)
+
+      setFase('attesa')
+
+      contatoreRef.current = setInterval(() => {
+        setSecondi(s => s + 1)
+      }, 1000)
+
+      intervalRef.current = setInterval(async () => {
+        try {
+          const statusRes = await fetch('/api/drawings/videostatus', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({ request_id: data.request_id })
+          })
+          const statusData = await statusRes.json()
+
+          if (statusData.status === 'completed') {
+            clearInterval(intervalRef.current)
+            clearInterval(contatoreRef.current)
+            setVideoUrl(statusData.video_url)
+            setFase('completato')
+          } else if (statusData.status === 'failed') {
+            clearInterval(intervalRef.current)
+            clearInterval(contatoreRef.current)
+            setErrore('Generazione fallita su fal.ai')
+            setFase('errore')
+          }
+          // 'processing' → continua polling
+        } catch (pollErr) {
+          clearInterval(intervalRef.current)
+          clearInterval(contatoreRef.current)
+          setErrore(pollErr.message)
+          setFase('errore')
+        }
+      }, 8000)
+
     } catch (err) {
-      setErrore('Errore nella generazione: ' + err.message)
-    } finally {
-      setGenerando(false)
+      clearInterval(intervalRef.current)
+      clearInterval(contatoreRef.current)
+      setErrore(err.message)
+      setFase('errore')
     }
   }
 
@@ -44,46 +88,96 @@ export default function VideoStoria({ renderUrl, storyText, drawingTitle }) {
     link.click()
   }
 
+  const reset = () => {
+    clearInterval(intervalRef.current)
+    clearInterval(contatoreRef.current)
+    setFase('idle')
+    setVideoUrl(null)
+    setErrore(null)
+    setSecondi(0)
+  }
+
   return (
     <div style={{ marginTop: '12px' }}>
 
-      {!videoUrl && (
+      {fase === 'idle' && (
         <button
-          onClick={generaVideo}
-          disabled={generando}
+          onClick={avviaVideo}
           style={{
             width: '100%', padding: '13px', borderRadius: '50px',
-            background: generando
-              ? '#e8e4df'
-              : 'linear-gradient(135deg, #B2EBF2, #A084E8)',
-            color: generando ? '#aaa' : 'white',
-            fontFamily: 'Outfit, sans-serif', fontWeight: 700,
-            fontSize: '0.9rem', border: 'none',
-            cursor: generando ? 'not-allowed' : 'pointer',
-            display: 'flex', alignItems: 'center',
-            justifyContent: 'center', gap: '8px'
+            background: 'linear-gradient(135deg, #B2EBF2, #A084E8)',
+            color: 'white', fontFamily: 'Outfit, sans-serif',
+            fontWeight: 700, fontSize: '0.95rem',
+            border: 'none', cursor: 'pointer'
           }}
         >
-          {generando
-            ? <><Spinner /> Generazione video in corso (~60 sec)...</>
-            : '🎬 Genera video della storia'}
+          🎬 Genera video della storia
         </button>
       )}
 
-      {errore && (
-        <p style={{
-          color: '#FF7F6A', fontSize: '0.82rem', fontFamily: 'Inter, sans-serif',
-          textAlign: 'center', marginTop: '8px', margin: '8px 0 0 0'
+      {fase === 'avvio' && (
+        <div style={{
+          padding: '13px', borderRadius: '50px', textAlign: 'center',
+          background: '#f0ede8', fontFamily: 'Outfit, sans-serif',
+          color: '#A084E8', fontWeight: 700, fontSize: '0.95rem'
         }}>
-          {errore}
-        </p>
+          ⏳ Avvio generazione...
+        </div>
       )}
 
-      {videoUrl && (
+      {fase === 'attesa' && (
         <div style={{
           backgroundColor: '#fff', borderRadius: '16px',
-          padding: '16px', marginTop: '8px',
+          padding: '20px', textAlign: 'center',
           border: '2px solid #f0ede8'
+        }}>
+          <div style={{
+            width: '36px', height: '36px', borderRadius: '50%',
+            border: '3px solid #f0ede8', borderTopColor: '#A084E8',
+            animation: 'spin 1s linear infinite', margin: '0 auto 12px'
+          }} />
+          <p style={{
+            fontFamily: 'Outfit, sans-serif', fontWeight: 700,
+            color: '#2D2D2D', margin: '0 0 4px 0', fontSize: '0.95rem'
+          }}>
+            🎬 Kling sta creando il video...
+          </p>
+          <p style={{
+            fontFamily: 'Inter, sans-serif', fontSize: '0.82rem',
+            color: '#aaa', margin: 0
+          }}>
+            {secondi}s — può richiedere 2-4 minuti
+          </p>
+        </div>
+      )}
+
+      {fase === 'errore' && (
+        <div style={{ textAlign: 'center' }}>
+          <p style={{
+            color: '#FF7F6A', fontFamily: 'Inter, sans-serif',
+            fontSize: '0.85rem', margin: '0 0 10px 0'
+          }}>
+            ⚠️ {errore}
+          </p>
+          <button
+            onClick={reset}
+            style={{
+              padding: '10px 20px', borderRadius: '50px',
+              border: '2px solid #FF7F6A', background: 'transparent',
+              color: '#FF7F6A', cursor: 'pointer',
+              fontFamily: 'Outfit, sans-serif', fontWeight: 700,
+              fontSize: '0.9rem'
+            }}
+          >
+            Riprova
+          </button>
+        </div>
+      )}
+
+      {fase === 'completato' && videoUrl && (
+        <div style={{
+          backgroundColor: '#fff', borderRadius: '16px',
+          padding: '16px', border: '2px solid #f0ede8'
         }}>
           <video
             src={videoUrl}
@@ -107,7 +201,7 @@ export default function VideoStoria({ renderUrl, storyText, drawingTitle }) {
               📥 Scarica video
             </button>
             <button
-              onClick={() => setVideoUrl(null)}
+              onClick={reset}
               style={{
                 padding: '12px 18px', borderRadius: '50px',
                 background: 'transparent', border: '2px solid #A084E8',
@@ -120,18 +214,8 @@ export default function VideoStoria({ renderUrl, storyText, drawingTitle }) {
           </div>
         </div>
       )}
-    </div>
-  )
-}
 
-function Spinner() {
-  return (
-    <div style={{
-      width: '16px', height: '16px', borderRadius: '50%',
-      border: '2px solid rgba(255,255,255,0.3)',
-      borderTopColor: 'white',
-      animation: 'spin 0.8s linear infinite',
-      flexShrink: 0
-    }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
   )
 }
