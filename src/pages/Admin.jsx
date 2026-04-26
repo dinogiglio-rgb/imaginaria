@@ -63,6 +63,227 @@ function TabButton({ label, active, onClick }) {
   )
 }
 
+// --- TAB BAMBINI ---
+function TabBambini({ session }) {
+  const [bambini, setBambini] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [formAperto, setFormAperto] = useState(false)
+  const [salvando, setSalvando] = useState(false)
+  const [eliminando, setEliminando] = useState(null)
+  const [nuovoBambino, setNuovoBambino] = useState({ nome: '', birthDate: '', gender: '' })
+
+  useEffect(() => { fetchBambini() }, [])
+
+  const fetchBambini = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('children')
+        .select('*, drawings(count)')
+        .order('name', { ascending: true })
+      if (error) throw error
+      setBambini(data || [])
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const calcolaEta = (birthDate) => {
+    if (!birthDate) return '—'
+    const nato = new Date(birthDate)
+    const oggi = new Date()
+    let totalMesi = (oggi.getFullYear() - nato.getFullYear()) * 12 + (oggi.getMonth() - nato.getMonth())
+    if (oggi.getDate() < nato.getDate()) totalMesi--
+    if (totalMesi < 0) return '—'
+    const anni = Math.floor(totalMesi / 12)
+    const mesi = totalMesi % 12
+    if (anni === 0) return `${mesi} mes${mesi === 1 ? 'e' : 'i'}`
+    if (mesi === 0) return `${anni} ann${anni === 1 ? 'o' : 'i'}`
+    return `${anni} ann${anni === 1 ? 'o' : 'i'} e ${mesi} mes${mesi === 1 ? 'e' : 'i'}`
+  }
+
+  const salva = async () => {
+    if (!nuovoBambino.nome.trim() || !nuovoBambino.birthDate || !nuovoBambino.gender) return
+    setSalvando(true)
+    try {
+      const { data, error } = await supabase
+        .from('children')
+        .insert({
+          name: nuovoBambino.nome.trim(),
+          birth_date: nuovoBambino.birthDate,
+          gender: nuovoBambino.gender,
+          created_by: session.user.id,
+        })
+        .select('*, drawings(count)')
+        .single()
+      if (error) throw error
+      setBambini(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
+      setNuovoBambino({ nome: '', birthDate: '', gender: '' })
+      setFormAperto(false)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  const elimina = async (bambino) => {
+    setEliminando(bambino.id)
+    try {
+      const { error } = await supabase.from('children').delete().eq('id', bambino.id)
+      if (error) throw error
+      setBambini(prev => prev.filter(b => b.id !== bambino.id))
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setEliminando(null)
+    }
+  }
+
+  if (loading) return <LoadingSpinner />
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '20px' }}>
+        <button onClick={() => setFormAperto(v => !v)} style={btn(BRAND.coral)}>
+          {formAperto ? '✕ Annulla' : '+ Aggiungi bambino'}
+        </button>
+      </div>
+
+      {formAperto && (
+        <div style={{
+          background: BRAND.cardBg, borderRadius: '20px',
+          border: `1px solid ${BRAND.border}`, padding: '24px 20px',
+          marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '14px'
+        }}>
+          <h3 style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 700, fontSize: '16px', color: BRAND.text, margin: 0 }}>
+            Nuovo bambino
+          </h3>
+          <input
+            type="text"
+            placeholder="Nome"
+            value={nuovoBambino.nome}
+            onChange={e => setNuovoBambino(v => ({ ...v, nome: e.target.value }))}
+            style={{
+              padding: '10px 16px', borderRadius: '50px',
+              border: `1.5px solid ${BRAND.border}`,
+              fontFamily: 'Inter, sans-serif', fontSize: '14px',
+              outline: 'none', background: '#fff',
+            }}
+          />
+          <div>
+            <label style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: BRAND.muted, display: 'block', marginBottom: '6px' }}>
+              Data di nascita
+            </label>
+            <input
+              type="date"
+              value={nuovoBambino.birthDate}
+              onChange={e => setNuovoBambino(v => ({ ...v, birthDate: e.target.value }))}
+              style={{
+                padding: '10px 16px', borderRadius: '50px',
+                border: `1.5px solid ${BRAND.border}`,
+                fontFamily: 'Inter, sans-serif', fontSize: '14px',
+                outline: 'none', background: '#fff', width: '100%',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+          <div>
+            <label style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: BRAND.muted, display: 'block', marginBottom: '8px' }}>
+              Genere
+            </label>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              {[
+                { value: 'maschio', label: '🧒 Maschio', color: BRAND.coral },
+                { value: 'femmina', label: '👧 Femmina', color: BRAND.purple },
+              ].map(g => (
+                <button
+                  key={g.value}
+                  onClick={() => setNuovoBambino(v => ({ ...v, gender: g.value }))}
+                  style={{
+                    padding: '10px 20px', borderRadius: '50px',
+                    border: `2px solid ${nuovoBambino.gender === g.value ? g.color : BRAND.border}`,
+                    background: nuovoBambino.gender === g.value ? g.color : 'white',
+                    color: nuovoBambino.gender === g.value ? 'white' : BRAND.muted,
+                    fontFamily: 'Inter, sans-serif', fontSize: '14px', fontWeight: 600,
+                    cursor: 'pointer', transition: 'all 0.15s',
+                  }}
+                >
+                  {g.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button
+            onClick={salva}
+            disabled={salvando || !nuovoBambino.nome.trim() || !nuovoBambino.birthDate || !nuovoBambino.gender}
+            style={{
+              ...btn(BRAND.coral),
+              opacity: (!nuovoBambino.nome.trim() || !nuovoBambino.birthDate || !nuovoBambino.gender) ? 0.5 : 1,
+              alignSelf: 'flex-start',
+            }}
+          >
+            {salvando ? 'Salvataggio...' : 'Salva'}
+          </button>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {bambini.map(b => {
+          const numDisegni = b.drawings?.[0]?.count ?? 0
+          const isMaschio = b.gender === 'maschio'
+          const colore = isMaschio ? BRAND.coral : BRAND.purple
+          return (
+            <div key={b.id} style={{
+              background: BRAND.cardBg, borderRadius: '16px',
+              border: `1px solid ${BRAND.border}`, padding: '16px 20px',
+              display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap',
+            }}>
+              <span style={{ fontSize: '1.8rem' }}>{isMaschio ? '🧒' : '👧'}</span>
+              <div style={{ flex: 1, minWidth: '140px' }}>
+                <div style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 700, fontSize: '16px', color: BRAND.text }}>
+                  {b.name}
+                </div>
+                <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '13px', color: BRAND.muted, marginTop: '2px' }}>
+                  {calcolaEta(b.birth_date)} · {b.birth_date ? new Date(b.birth_date).toLocaleDateString('it-IT') : '—'}
+                </div>
+              </div>
+              <span style={{
+                background: colore + '20', color: colore,
+                padding: '3px 12px', borderRadius: '50px',
+                fontSize: '12px', fontWeight: 700, fontFamily: 'Inter, sans-serif',
+              }}>
+                {isMaschio ? 'Maschio' : 'Femmina'}
+              </span>
+              <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '13px', color: BRAND.muted }}>
+                {numDisegni} disegni
+              </span>
+              <button
+                onClick={() => elimina(b)}
+                disabled={numDisegni > 0 || eliminando === b.id}
+                title={numDisegni > 0 ? 'Ha dei disegni, non eliminabile' : 'Elimina'}
+                style={{
+                  ...btn('#E57373', true),
+                  opacity: numDisegni > 0 ? 0.4 : 1,
+                  cursor: numDisegni > 0 ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {eliminando === b.id ? '...' : 'Elimina'}
+              </button>
+            </div>
+          )
+        })}
+        {bambini.length === 0 && (
+          <p style={{ color: BRAND.muted, fontFamily: 'Inter, sans-serif', textAlign: 'center', marginTop: '32px' }}>
+            Nessun bambino ancora.
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // --- TAB UTENTI ---
 function TabUtenti({ session }) {
   const [users, setUsers] = useState([])
@@ -460,7 +681,7 @@ function LoadingSpinner() {
 // --- PAGINA PRINCIPALE ---
 export default function Admin({ user }) {
   const navigate = useNavigate()
-  const [tab, setTab] = useState('utenti')
+  const [tab, setTab] = useState('bambini')
   const [session, setSession] = useState(null)
   const [checking, setChecking] = useState(true)
 
@@ -526,12 +747,14 @@ export default function Admin({ user }) {
           marginBottom: '28px',
           width: 'fit-content',
         }}>
+          <TabButton label="Bambini" active={tab === 'bambini'} onClick={() => setTab('bambini')} />
           <TabButton label="Utenti" active={tab === 'utenti'} onClick={() => setTab('utenti')} />
           <TabButton label="Whitelist" active={tab === 'whitelist'} onClick={() => setTab('whitelist')} />
           <TabButton label="Statistiche" active={tab === 'statistiche'} onClick={() => setTab('statistiche')} />
         </div>
 
         {/* Contenuto tab */}
+        {tab === 'bambini' && <TabBambini session={session} />}
         {tab === 'utenti' && <TabUtenti session={session} />}
         {tab === 'whitelist' && <TabWhitelist session={session} />}
         {tab === 'statistiche' && <TabStatistiche session={session} />}
