@@ -1,0 +1,458 @@
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
+
+const BRAND = {
+  bg: '#FAF9F6',
+  coral: '#FF7F6A',
+  purple: '#A084E8',
+  lightBlue: '#B2EBF2',
+  text: '#2D2D2D',
+  muted: '#888',
+  border: '#E8E3DC',
+  cardBg: '#FFFFFF',
+}
+
+const btn = (color, outline = false) => ({
+  padding: '8px 20px',
+  borderRadius: '50px',
+  border: outline ? `2px solid ${color}` : 'none',
+  background: outline ? 'transparent' : color,
+  color: outline ? color : '#fff',
+  fontFamily: 'Inter, sans-serif',
+  fontSize: '13px',
+  fontWeight: 600,
+  cursor: 'pointer',
+  transition: 'opacity 0.15s',
+})
+
+function RoleBadge({ role }) {
+  const color = role === 'admin' ? BRAND.purple : BRAND.lightBlue
+  const textColor = role === 'admin' ? '#fff' : '#2D2D2D'
+  return (
+    <span style={{
+      background: color,
+      color: textColor,
+      padding: '3px 12px',
+      borderRadius: '50px',
+      fontSize: '12px',
+      fontWeight: 700,
+      fontFamily: 'Inter, sans-serif',
+    }}>
+      {role}
+    </span>
+  )
+}
+
+function TabButton({ label, active, onClick }) {
+  return (
+    <button onClick={onClick} style={{
+      padding: '10px 24px',
+      borderRadius: '50px',
+      border: 'none',
+      background: active ? BRAND.coral : 'transparent',
+      color: active ? '#fff' : BRAND.muted,
+      fontFamily: 'Outfit, sans-serif',
+      fontSize: '15px',
+      fontWeight: active ? 700 : 500,
+      cursor: 'pointer',
+      transition: 'all 0.15s',
+    }}>
+      {label}
+    </button>
+  )
+}
+
+// --- TAB UTENTI ---
+function TabUtenti({ session }) {
+  const [users, setUsers] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [updating, setUpdating] = useState(null)
+
+  useEffect(() => {
+    fetchUsers()
+  }, [])
+
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch('/api/admin/users', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      const data = await res.json()
+      if (res.ok) setUsers(data)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const cambiaRuolo = async (userId, newRole) => {
+    setUpdating(userId)
+    try {
+      const res = await fetch('/api/admin/setrole', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ userId, newRole }),
+      })
+      if (res.ok) {
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u))
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setUpdating(null)
+    }
+  }
+
+  if (loading) return <LoadingSpinner />
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      {users.map(u => (
+        <div key={u.id} style={{
+          background: BRAND.cardBg,
+          borderRadius: '16px',
+          border: `1px solid ${BRAND.border}`,
+          padding: '16px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px',
+          flexWrap: 'wrap',
+        }}>
+          <div style={{ flex: 1, minWidth: '160px' }}>
+            <div style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 700, fontSize: '16px', color: BRAND.text }}>
+              {u.display_name || '—'}
+            </div>
+            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '13px', color: BRAND.muted, marginTop: '2px' }}>
+              {u.email}
+            </div>
+            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: BRAND.muted, marginTop: '2px' }}>
+              {u.created_at ? new Date(u.created_at).toLocaleDateString('it-IT', {
+                day: 'numeric', month: 'long', year: 'numeric'
+              }) : '—'}
+            </div>
+          </div>
+          <RoleBadge role={u.role || 'user'} />
+          {u.id !== session.user.id && (
+            <button
+              onClick={() => cambiaRuolo(u.id, u.role === 'admin' ? 'user' : 'admin')}
+              disabled={updating === u.id}
+              style={btn(u.role === 'admin' ? BRAND.muted : BRAND.purple, true)}
+            >
+              {updating === u.id ? '...' : u.role === 'admin' ? 'Rendi User' : 'Rendi Admin'}
+            </button>
+          )}
+        </div>
+      ))}
+      {users.length === 0 && (
+        <p style={{ color: BRAND.muted, fontFamily: 'Inter, sans-serif', textAlign: 'center', marginTop: '32px' }}>
+          Nessun utente trovato.
+        </p>
+      )}
+    </div>
+  )
+}
+
+// --- TAB WHITELIST ---
+function TabWhitelist({ session }) {
+  const [emails, setEmails] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [nuovaEmail, setNuovaEmail] = useState('')
+  const [adding, setAdding] = useState(false)
+  const [removing, setRemoving] = useState(null)
+
+  useEffect(() => {
+    fetchWhitelist()
+  }, [])
+
+  const fetchWhitelist = async () => {
+    try {
+      const res = await fetch('/api/admin/whitelist', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      const data = await res.json()
+      if (res.ok) setEmails(data)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const aggiungi = async () => {
+    if (!nuovaEmail.trim()) return
+    setAdding(true)
+    try {
+      const res = await fetch('/api/admin/whitelist', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ email: nuovaEmail.trim() }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setEmails(prev => [data, ...prev])
+        setNuovaEmail('')
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  const rimuovi = async (email) => {
+    setRemoving(email)
+    try {
+      const res = await fetch('/api/admin/whitelist', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ email }),
+      })
+      if (res.ok) setEmails(prev => prev.filter(e => e.email !== email))
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setRemoving(null)
+    }
+  }
+
+  if (loading) return <LoadingSpinner />
+
+  return (
+    <div>
+      {/* Input aggiungi */}
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
+        <input
+          type="email"
+          value={nuovaEmail}
+          onChange={e => setNuovaEmail(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && aggiungi()}
+          placeholder="nuova@email.com"
+          style={{
+            flex: 1,
+            minWidth: '200px',
+            padding: '10px 16px',
+            borderRadius: '50px',
+            border: `1.5px solid ${BRAND.border}`,
+            fontFamily: 'Inter, sans-serif',
+            fontSize: '14px',
+            outline: 'none',
+            background: '#fff',
+          }}
+        />
+        <button onClick={aggiungi} disabled={adding} style={btn(BRAND.coral)}>
+          {adding ? '...' : 'Aggiungi email'}
+        </button>
+      </div>
+
+      {/* Lista */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {emails.map(e => (
+          <div key={e.id} style={{
+            background: BRAND.cardBg,
+            borderRadius: '12px',
+            border: `1px solid ${BRAND.border}`,
+            padding: '12px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+          }}>
+            <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '14px', color: BRAND.text }}>
+              {e.email}
+            </span>
+            <button
+              onClick={() => rimuovi(e.email)}
+              disabled={removing === e.email}
+              style={btn('#E57373', true)}
+            >
+              {removing === e.email ? '...' : 'Rimuovi'}
+            </button>
+          </div>
+        ))}
+        {emails.length === 0 && (
+          <p style={{ color: BRAND.muted, fontFamily: 'Inter, sans-serif', textAlign: 'center', marginTop: '32px' }}>
+            Nessuna email in whitelist.
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// --- TAB STATISTICHE ---
+function TabStatistiche({ session }) {
+  const [stats, setStats] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchStats()
+  }, [])
+
+  const fetchStats = async () => {
+    try {
+      const res = await fetch('/api/admin/stats', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      const data = await res.json()
+      if (res.ok) setStats(data)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) return <LoadingSpinner />
+
+  const cards = [
+    { label: 'Disegni totali', value: stats?.drawings ?? 0 },
+    { label: 'Render generati', value: stats?.renders ?? 0 },
+    { label: 'Storie create', value: stats?.stories ?? 0 },
+    { label: 'Video generati', value: stats?.videos ?? 0 },
+  ]
+
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+      gap: '16px',
+    }}>
+      {cards.map(c => (
+        <div key={c.label} style={{
+          background: BRAND.cardBg,
+          borderRadius: '20px',
+          border: `1px solid ${BRAND.border}`,
+          padding: '28px 24px',
+          textAlign: 'center',
+        }}>
+          <div style={{
+            fontFamily: 'Outfit, sans-serif',
+            fontWeight: 800,
+            fontSize: '48px',
+            color: BRAND.coral,
+            lineHeight: 1,
+          }}>
+            {c.value}
+          </div>
+          <div style={{
+            fontFamily: 'Inter, sans-serif',
+            fontSize: '14px',
+            color: BRAND.muted,
+            marginTop: '8px',
+          }}>
+            {c.label}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function LoadingSpinner() {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', padding: '48px' }}>
+      <div style={{
+        width: '36px', height: '36px',
+        borderRadius: '50%',
+        border: '3px solid #f0ede8',
+        borderTopColor: BRAND.coral,
+        animation: 'spin 0.8s linear infinite',
+      }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  )
+}
+
+// --- PAGINA PRINCIPALE ---
+export default function Admin({ user }) {
+  const navigate = useNavigate()
+  const [tab, setTab] = useState('utenti')
+  const [session, setSession] = useState(null)
+  const [checking, setChecking] = useState(true)
+
+  useEffect(() => {
+    const check = async () => {
+      const { data: { session: s } } = await supabase.auth.getSession()
+      if (!s) { navigate('/'); return }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', s.user.id)
+        .single()
+
+      if (profile?.role !== 'admin') { navigate('/'); return }
+
+      setSession(s)
+      setChecking(false)
+    }
+    check()
+  }, [navigate])
+
+  if (checking) {
+    return (
+      <div style={{ minHeight: '100vh', background: BRAND.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <LoadingSpinner />
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ minHeight: '100vh', background: BRAND.bg, padding: '24px 16px' }}>
+      <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+        {/* Header */}
+        <div style={{ marginBottom: '32px' }}>
+          <button
+            onClick={() => navigate('/')}
+            style={{ ...btn(BRAND.muted, true), marginBottom: '20px', fontSize: '13px' }}
+          >
+            ← Torna alla home
+          </button>
+          <h1 style={{
+            fontFamily: 'Outfit, sans-serif',
+            fontWeight: 800,
+            fontSize: '32px',
+            color: BRAND.coral,
+            margin: 0,
+          }}>
+            Pannello Admin
+          </h1>
+          <p style={{ fontFamily: 'Inter, sans-serif', color: BRAND.muted, fontSize: '14px', marginTop: '6px' }}>
+            Gestisci utenti, whitelist e statistiche
+          </p>
+        </div>
+
+        {/* Tab bar */}
+        <div style={{
+          display: 'flex',
+          gap: '4px',
+          background: '#f0ede8',
+          borderRadius: '50px',
+          padding: '4px',
+          marginBottom: '28px',
+          width: 'fit-content',
+        }}>
+          <TabButton label="Utenti" active={tab === 'utenti'} onClick={() => setTab('utenti')} />
+          <TabButton label="Whitelist" active={tab === 'whitelist'} onClick={() => setTab('whitelist')} />
+          <TabButton label="Statistiche" active={tab === 'statistiche'} onClick={() => setTab('statistiche')} />
+        </div>
+
+        {/* Contenuto tab */}
+        {tab === 'utenti' && <TabUtenti session={session} />}
+        {tab === 'whitelist' && <TabWhitelist session={session} />}
+        {tab === 'statistiche' && <TabStatistiche session={session} />}
+      </div>
+    </div>
+  )
+}
