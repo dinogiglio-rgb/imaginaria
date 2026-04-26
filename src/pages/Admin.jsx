@@ -315,7 +315,7 @@ function TabStatistiche({ session }) {
 
   if (loading) return <LoadingSpinner />
 
-  const cards = [
+  const totals = [
     { label: 'Disegni totali', value: stats?.drawings ?? 0 },
     { label: 'Render generati', value: stats?.renders ?? 0 },
     { label: 'Storie create', value: stats?.stories ?? 0 },
@@ -323,38 +323,121 @@ function TabStatistiche({ session }) {
   ]
 
   return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-      gap: '16px',
-    }}>
-      {cards.map(c => (
-        <div key={c.label} style={{
-          background: BRAND.cardBg,
-          borderRadius: '20px',
-          border: `1px solid ${BRAND.border}`,
-          padding: '28px 24px',
-          textAlign: 'center',
-        }}>
-          <div style={{
-            fontFamily: 'Outfit, sans-serif',
-            fontWeight: 800,
-            fontSize: '48px',
-            color: BRAND.coral,
-            lineHeight: 1,
+    <div>
+      {/* Totali globali */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+        gap: '16px',
+        marginBottom: '36px',
+      }}>
+        {totals.map(c => (
+          <div key={c.label} style={{
+            background: BRAND.cardBg,
+            borderRadius: '20px',
+            border: `1px solid ${BRAND.border}`,
+            padding: '28px 24px',
+            textAlign: 'center',
           }}>
-            {c.value}
+            <div style={{
+              fontFamily: 'Outfit, sans-serif',
+              fontWeight: 800,
+              fontSize: '48px',
+              color: BRAND.coral,
+              lineHeight: 1,
+            }}>
+              {c.value}
+            </div>
+            <div style={{
+              fontFamily: 'Inter, sans-serif',
+              fontSize: '14px',
+              color: BRAND.muted,
+              marginTop: '8px',
+            }}>
+              {c.label}
+            </div>
           </div>
-          <div style={{
-            fontFamily: 'Inter, sans-serif',
-            fontSize: '14px',
-            color: BRAND.muted,
-            marginTop: '8px',
+        ))}
+      </div>
+
+      {/* Statistiche per utente */}
+      {stats?.perUser?.length > 0 && (
+        <div>
+          <h2 style={{
+            fontFamily: 'Outfit, sans-serif',
+            fontWeight: 700,
+            fontSize: '18px',
+            color: BRAND.text,
+            margin: '0 0 16px 0',
           }}>
-            {c.label}
+            Statistiche per utente
+          </h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {stats.perUser.map(u => (
+              <div key={u.userId} style={{
+                background: BRAND.cardBg,
+                borderRadius: '20px',
+                border: `1px solid ${BRAND.border}`,
+                padding: '20px 24px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+              }}>
+                <div style={{
+                  fontFamily: 'Outfit, sans-serif',
+                  fontWeight: 700,
+                  fontSize: '16px',
+                  color: BRAND.coral,
+                  marginBottom: '4px',
+                }}>
+                  {u.displayName || u.email || '—'}
+                </div>
+                {u.displayName && (
+                  <div style={{
+                    fontFamily: 'Inter, sans-serif',
+                    fontSize: '12px',
+                    color: BRAND.muted,
+                    marginBottom: '16px',
+                  }}>
+                    {u.email}
+                  </div>
+                )}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(4, 1fr)',
+                  gap: '8px',
+                  marginTop: u.displayName ? '0' : '12px',
+                }}>
+                  {[
+                    { label: 'Disegni', value: u.drawings },
+                    { label: 'Render', value: u.renders },
+                    { label: 'Storie', value: u.stories },
+                    { label: 'Video', value: u.videos },
+                  ].map(m => (
+                    <div key={m.label} style={{ textAlign: 'center' }}>
+                      <div style={{
+                        fontFamily: 'Outfit, sans-serif',
+                        fontWeight: 800,
+                        fontSize: '32px',
+                        color: BRAND.purple,
+                        lineHeight: 1,
+                      }}>
+                        {m.value}
+                      </div>
+                      <div style={{
+                        fontFamily: 'Inter, sans-serif',
+                        fontSize: '11px',
+                        color: BRAND.muted,
+                        marginTop: '4px',
+                      }}>
+                        {m.label}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-      ))}
+      )}
     </div>
   )
 }
