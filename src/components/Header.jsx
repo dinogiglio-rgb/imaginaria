@@ -1,8 +1,22 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { logout } from '../lib/auth'
+import { supabase } from '../lib/supabase'
 
 export default function Header({ user }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (!user) return
+    supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+      .then(({ data }) => setIsAdmin(data?.role === 'admin'))
+  }, [user?.id])
 
   const iniziali = user?.email?.substring(0, 2).toUpperCase() || 'U'
 
@@ -79,6 +93,30 @@ export default function Header({ user }) {
             }}>
               {user?.email}
             </p>
+            {isAdmin && (
+              <>
+                <div style={{ height: '1px', background: '#f0ede8', margin: '4px 0' }} />
+                <button
+                  onClick={() => { setMenuOpen(false); navigate('/admin') }}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#A084E8',
+                    fontFamily: 'Inter, sans-serif',
+                    fontWeight: 600,
+                    fontSize: '0.95rem',
+                    textAlign: 'left',
+                    borderRadius: '8px',
+                  }}
+                >
+                  ⚙️ Pannello Admin
+                </button>
+              </>
+            )}
+            <div style={{ height: '1px', background: '#f0ede8', margin: '4px 0' }} />
             <button
               onClick={logout}
               style={{
