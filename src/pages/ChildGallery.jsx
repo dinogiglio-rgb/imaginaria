@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import Header from '../components/Header'
 import DrawingCard from '../components/DrawingCard'
 import EmptyState from '../components/EmptyState'
+import PushNotificationButton from '../components/PushNotificationButton'
 
 function calcolaEta(birthDate) {
   if (!birthDate) return null
@@ -128,10 +129,11 @@ export default function ChildGallery({ user }) {
               }}>
                 {bambino?.name} {icona}
               </h1>
-              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', color: '#999', margin: 0 }}>
+              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', color: '#999', margin: '0 0 10px 0' }}>
                 {eta && `${eta} · `}{drawingsFiltrati.length} disegn{drawingsFiltrati.length === 1 ? 'o' : 'i'}
                 {filtriAttivi ? ' (filtrati)' : ''}
               </p>
+              <PushNotificationButton />
             </div>
 
             <div style={{ display: 'flex', gap: '8px' }}>
