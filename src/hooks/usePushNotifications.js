@@ -9,6 +9,8 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 export function usePushNotifications() {
+  console.log('VAPID KEY:', import.meta.env.VITE_VAPID_PUBLIC_KEY)
+
   const isSupported = typeof window !== 'undefined'
     && 'serviceWorker' in navigator
     && 'PushManager' in window

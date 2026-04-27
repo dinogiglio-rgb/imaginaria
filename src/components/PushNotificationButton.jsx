@@ -3,7 +3,15 @@ import { usePushNotifications } from '../hooks/usePushNotifications'
 export default function PushNotificationButton() {
   const { isSupported, isSubscribed, isLoading, subscribe, unsubscribe } = usePushNotifications()
 
-  if (!isSupported) return null
+  console.log('PushNotificationButton render', { isSupported })
+
+  if (!isSupported) {
+    return (
+      <p style={{ fontSize: '12px', color: '#999', margin: 0 }}>
+        Notifiche non disponibili su questo browser
+      </p>
+    )
+  }
 
   return (
     <button
