@@ -1,6 +1,41 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 
+function calcolaAnni(birthDate) {
+  if (!birthDate) return null
+  const nato = new Date(birthDate)
+  const oggi = new Date()
+  let anni = oggi.getFullYear() - nato.getFullYear()
+  const m = oggi.getMonth() - nato.getMonth()
+  if (m < 0 || (m === 0 && oggi.getDate() < nato.getDate())) anni--
+  return anni
+}
+
+function buildContestoEta(bambino) {
+  if (!bambino) return ''
+  const anni = calcolaAnni(bambino.birth_date)
+  const isMaschio = bambino.gender === 'maschio'
+  const articolo = isMaschio ? 'un bambino' : 'una bambina'
+  const pronome = isMaschio ? 'lui' : 'lei'
+  const riferimento = isMaschio ? 'il bambino' : 'la bambina'
+  const etaStr = anni !== null ? ` di ${anni} anni` : ''
+
+  return `Stai scrivendo una storia per ${bambino.name}, ${articolo}${etaStr}.
+Genere: ${bambino.gender}.
+
+Linee guida per l'età:
+- 2-4 anni: frasi cortissime, parole semplici, personaggi animali simpatici, finale sempre felice, massimo 5 righe
+- 5-6 anni: frasi brevi, piccola avventura, un problema semplice da risolvere, massimo 8 righe
+- 7-8 anni: più dettagli, suspense leggera, amicizia e coraggio come temi, massimo 12 righe
+- 9-10 anni: trama con inizio/svolgimento/fine, personaggio complesso, emozioni più profonde, massimo 15 righe
+- 11+ anni: storia articolata, temi come identità e avventura, stile più maturo
+
+Usa sempre ${pronome} e ${riferimento} in base al genere.
+Il protagonista della storia è sempre ${bambino.name}.
+
+`
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Metodo non consentito' })
 
@@ -21,7 +56,7 @@ export default async function handler(req, res) {
 
     const { data: drawing, error: dbError } = await supabase
       .from('drawings')
-      .select('*')
+      .select('*, children(*)')
       .eq('id', drawingId)
       .single()
 
@@ -30,10 +65,11 @@ export default async function handler(req, res) {
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 55000 })
     const descrizione = indicazioni || drawing.ai_description || drawing.ai_title || 'un disegno di un bambino'
     const titolo = drawing.ai_title || 'il disegno'
+    const contestoEta = buildContestoEta(drawing.children)
 
     let prompt = ''
     if (tipo === 'breve') {
-      prompt = `Sei un narratore magico e poetico che scrive storie per bambini.
+      prompt = `${contestoEta}Sei un narratore magico e poetico che scrive storie per bambini.
 
 Basandoti su questo disegno intitolato "${titolo}" e su questa descrizione:
 "${descrizione}"
@@ -44,7 +80,7 @@ La storia deve sembrare che i personaggi del disegno prendano vita.
 Usa un linguaggio semplice, poetico e pieno di meraviglia.
 Inizia direttamente con la storia, senza titolo e senza introduzioni.`
     } else {
-      prompt = `Sei un narratore magico e poetico che scrive favole per bambini.
+      prompt = `${contestoEta}Sei un narratore magico e poetico che scrive favole per bambini.
 
 Basandoti su questo disegno intitolato "${titolo}" e su questa descrizione:
 "${descrizione}"
