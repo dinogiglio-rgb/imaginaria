@@ -13,31 +13,33 @@ export default async function handler(req, res) {
 
   try {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-    if (authError || !user) return res.status(401).json({ error: 'Token non valido' })
+    if (authError || !user) return res.status(401).json({ error: 'Non autorizzato' })
 
     const { drawing_id } = req.body
     if (!drawing_id) return res.status(400).json({ error: 'drawing_id richiesto' })
 
-    // Verifica che il disegno appartenga all'utente
+    // Verifica che il disegno esista (senza filtrare per author_id)
     const { data: drawing, error: drawingError } = await supabase
       .from('drawings')
       .select('id')
       .eq('id', drawing_id)
-      .eq('author_id', user.id)
       .single()
 
-    if (drawingError || !drawing) return res.status(403).json({ error: 'Disegno non trovato' })
+    if (drawingError || !drawing) return res.status(404).json({ error: 'Disegno non trovato' })
 
     // Controlla se esiste già un token per questo disegno
-    const { data: existing } = await supabase
+    const { data: rows } = await supabase
       .from('share_tokens')
       .select('token')
       .eq('drawing_id', drawing_id)
-      .single()
+      .limit(1)
 
-    if (existing?.token) {
-      const url = `https://imaginaria-beryl.vercel.app/share/${existing.token}`
-      return res.status(200).json({ token: existing.token, url })
+    if (rows?.length > 0) {
+      const existing = rows[0].token
+      return res.status(200).json({
+        token: existing,
+        url: `https://imaginaria-beryl.vercel.app/share/${existing}`,
+      })
     }
 
     // Genera nuovo token e salva
@@ -48,8 +50,10 @@ export default async function handler(req, res) {
 
     if (insertError) throw insertError
 
-    const url = `https://imaginaria-beryl.vercel.app/share/${shareToken}`
-    return res.status(200).json({ token: shareToken, url })
+    return res.status(200).json({
+      token: shareToken,
+      url: `https://imaginaria-beryl.vercel.app/share/${shareToken}`,
+    })
 
   } catch (err) {
     console.error('Errore share:', err)
