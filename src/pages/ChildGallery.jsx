@@ -4,8 +4,6 @@ import { supabase } from '../lib/supabase'
 import Header from '../components/Header'
 import DrawingCard from '../components/DrawingCard'
 import EmptyState from '../components/EmptyState'
-import PushNotificationButton from '../components/PushNotificationButton'
-
 function calcolaEta(birthDate) {
   if (!birthDate) return null
   const nato = new Date(birthDate)
@@ -133,7 +131,6 @@ export default function ChildGallery({ user }) {
                 {eta && `${eta} · `}{drawingsFiltrati.length} disegn{drawingsFiltrati.length === 1 ? 'o' : 'i'}
                 {filtriAttivi ? ' (filtrati)' : ''}
               </p>
-              <PushNotificationButton />
             </div>
 
             <div style={{ display: 'flex', gap: '8px' }}>

@@ -1,7 +1,5 @@
 import { fal } from '@fal-ai/client'
 import { createClient } from '@supabase/supabase-js'
-import { sendPushToUser } from '../push/send.js'
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
 
@@ -42,12 +40,6 @@ export default async function handler(req, res) {
           .eq('drawing_id', drawing_id)
           .eq('style', style)
       }
-
-      await sendPushToUser(supabase, user.id, {
-        title: 'Video pronto! 🎬',
-        body: 'Il video magico è pronto da vedere!',
-        url: drawing_id ? `/drawing/${drawing_id}` : '/'
-      })
 
       return res.status(200).json({
         status: 'completed',

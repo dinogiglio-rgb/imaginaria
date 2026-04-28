@@ -1,7 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 import { fal } from '@fal-ai/client';
-import { sendPushToUser } from '../push/send.js';
-
 fal.config({ credentials: process.env.FAL_KEY });
 
 if (!process.env.FAL_KEY) {
@@ -208,12 +206,6 @@ export default async function handler(req, res) {
         completed_at: new Date().toISOString()
       })
       .eq('id', render.id);
-
-    await sendPushToUser(supabase, user.id, {
-      title: 'Trasformazione completata! ✨',
-      body: `Il render magico di "${drawing.ai_title || 'disegno'}" è pronto!`,
-      url: `/drawing/${drawing_id}`
-    });
 
     return res.status(200).json({ success: true, render_url: publicUrl, style });
 
