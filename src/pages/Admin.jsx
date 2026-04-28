@@ -296,7 +296,7 @@ function TabUtenti({ session }) {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch('/api/admin/users', {
+      const res = await fetch('/api/admin?action=users', {
         headers: { Authorization: `Bearer ${session.access_token}` },
       })
       const data = await res.json()
@@ -311,13 +311,13 @@ function TabUtenti({ session }) {
   const cambiaRuolo = async (userId, newRole) => {
     setUpdating(userId)
     try {
-      const res = await fetch('/api/admin/setrole', {
+      const res = await fetch('/api/admin', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ userId, newRole }),
+        body: JSON.stringify({ action: 'setrole', userId, newRole }),
       })
       if (res.ok) {
         setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u))
@@ -392,7 +392,7 @@ function TabWhitelist({ session }) {
 
   const fetchWhitelist = async () => {
     try {
-      const res = await fetch('/api/admin/whitelist', {
+      const res = await fetch('/api/admin?action=whitelist-list', {
         headers: { Authorization: `Bearer ${session.access_token}` },
       })
       const data = await res.json()
@@ -408,13 +408,13 @@ function TabWhitelist({ session }) {
     if (!nuovaEmail.trim()) return
     setAdding(true)
     try {
-      const res = await fetch('/api/admin/whitelist', {
+      const res = await fetch('/api/admin', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ email: nuovaEmail.trim() }),
+        body: JSON.stringify({ action: 'whitelist-add', email: nuovaEmail.trim() }),
       })
       const data = await res.json()
       if (res.ok) {
@@ -431,13 +431,13 @@ function TabWhitelist({ session }) {
   const rimuovi = async (email) => {
     setRemoving(email)
     try {
-      const res = await fetch('/api/admin/whitelist', {
+      const res = await fetch('/api/admin', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ action: 'whitelist-delete', email }),
       })
       if (res.ok) setEmails(prev => prev.filter(e => e.email !== email))
     } catch (err) {
@@ -522,7 +522,7 @@ function TabStatistiche({ session }) {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch('/api/admin/stats', {
+      const res = await fetch('/api/admin?action=stats', {
         headers: { Authorization: `Bearer ${session.access_token}` },
       })
       const data = await res.json()
