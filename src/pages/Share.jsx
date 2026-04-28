@@ -18,18 +18,18 @@ export default function Share() {
   const caricaDati = async () => {
     try {
       // Trova il drawing_id dal token
-      const { data: shareRow, error: tokenError } = await supabase
+      const { data: rows, error: tokenError } = await supabase
         .from('share_tokens')
         .select('drawing_id')
         .eq('token', token)
-        .single()
+        .limit(1)
 
-      if (tokenError || !shareRow) {
+      if (tokenError || !rows || rows.length === 0) {
         setStato('notfound')
         return
       }
 
-      const drawingId = shareRow.drawing_id
+      const drawingId = rows[0].drawing_id
 
       // Carica disegno, render e storia in parallelo
       const [drawingRes, rendersRes, storieRes] = await Promise.all([
