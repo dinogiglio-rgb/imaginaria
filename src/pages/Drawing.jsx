@@ -31,6 +31,7 @@ export default function Drawing({ user }) {
   const [modelUrl, setModelUrl] = useState(null)
   const [mostraViewer, setMostraViewer] = useState(false)
   const [stileSceltoVideo, setStileSceltoVideo] = useState(null)
+  const [shareStato, setShareStato] = useState(null) // null | 'loading' | 'copied' | 'error'
 
   useEffect(() => {
     fetchDrawing()
@@ -238,6 +239,30 @@ export default function Drawing({ user }) {
     }
   }
 
+  const condividi = async () => {
+    setShareStato('loading')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/drawings/share', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ drawing_id: id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      await navigator.clipboard.writeText(data.url)
+      setShareStato('copied')
+      setTimeout(() => setShareStato(null), 3000)
+    } catch (err) {
+      console.error('Errore condivisione:', err)
+      setShareStato('error')
+      setTimeout(() => setShareStato(null), 3000)
+    }
+  }
+
   const handleElimina = async () => {
     try {
       const estensioni = ['jpg', 'jpeg', 'png', 'webp']
@@ -307,6 +332,43 @@ export default function Drawing({ user }) {
       </header>
 
       <div style={{ padding: '20px' }}>
+
+        {/* Bottone condivisione */}
+        <button
+          onClick={condividi}
+          disabled={shareStato === 'loading'}
+          style={{
+            width: '100%',
+            padding: '14px',
+            marginBottom: '20px',
+            background: shareStato === 'copied'
+              ? 'linear-gradient(135deg, #4CAF50, #43A047)'
+              : shareStato === 'error'
+              ? '#E57373'
+              : 'linear-gradient(135deg, #FF7F6A, #A084E8)',
+            border: 'none',
+            borderRadius: '50px',
+            cursor: shareStato === 'loading' ? 'not-allowed' : 'pointer',
+            fontFamily: 'Inter, sans-serif',
+            fontWeight: 700,
+            fontSize: '0.95rem',
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            boxShadow: '0 4px 16px rgba(255,127,106,0.3)',
+            transition: 'background 0.3s',
+          }}
+        >
+          {shareStato === 'loading' && (
+            <div style={{ width: '18px', height: '18px', borderRadius: '50%', border: '3px solid rgba(255,255,255,0.4)', borderTopColor: 'white', animation: 'spin 0.8s linear infinite' }} />
+          )}
+          {shareStato === 'loading' && 'Generazione link...'}
+          {shareStato === 'copied' && 'Link copiato! ✅'}
+          {shareStato === 'error' && 'Errore, riprova'}
+          {!shareStato && 'Condividi ✨'}
+        </button>
 
         {/* Foto originale */}
         {drawing?.original_url && (

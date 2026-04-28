@@ -9,6 +9,7 @@ import Drawing from './pages/Drawing'
 import Book from './pages/Book'
 import Admin from './pages/Admin'
 import ChildGallery from './pages/ChildGallery'
+import Share from './pages/Share'
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -59,6 +60,7 @@ export default function App() {
         <Route path="/book" element={user ? <Book user={user} /> : <Navigate to="/login" />} />
         <Route path="/admin" element={user ? <Admin user={user} /> : <Navigate to="/login" />} />
         <Route path="/child/:id" element={user ? <ChildGallery user={user} /> : <Navigate to="/login" />} />
+        <Route path="/share/:token" element={<Share />} />
       </Routes>
     </BrowserRouter>
   )
