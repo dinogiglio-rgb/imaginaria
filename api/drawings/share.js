@@ -46,7 +46,7 @@ export default async function handler(req, res) {
     const newToken = crypto.randomUUID()
     const { data: inserted, error: insertError } = await supabase
       .from('share_tokens')
-      .insert({ token: newToken, drawing_id, created_by: user.id })
+      .insert({ token: newToken, drawing_id })
       .select()
       .limit(1)
 
