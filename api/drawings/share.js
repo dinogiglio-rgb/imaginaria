@@ -19,13 +19,13 @@ export default async function handler(req, res) {
     if (!drawing_id) return res.status(400).json({ error: 'drawing_id richiesto' })
 
     // Verifica che il disegno esista (senza filtrare per author_id)
-    const { data: drawing, error: drawingError } = await supabase
+    const { data: drawingRows, error: drawingError } = await supabase
       .from('drawings')
       .select('id')
       .eq('id', drawing_id)
-      .single()
+      .limit(1)
 
-    if (drawingError || !drawing) return res.status(404).json({ error: 'Disegno non trovato' })
+    if (drawingError || !drawingRows?.length) return res.status(404).json({ error: 'Disegno non trovato' })
 
     // Controlla se esiste già un token per questo disegno
     const { data: rows } = await supabase
@@ -43,13 +43,19 @@ export default async function handler(req, res) {
     }
 
     // Genera nuovo token e salva
-    const shareToken = crypto.randomUUID()
-    const { error: insertError } = await supabase
+    const newToken = crypto.randomUUID()
+    const { data: inserted, error: insertError } = await supabase
       .from('share_tokens')
-      .insert({ token: shareToken, drawing_id, created_by: user.id })
+      .insert({ token: newToken, drawing_id, created_by: user.id })
+      .select()
+      .limit(1)
 
-    if (insertError) throw insertError
+    if (insertError) {
+      console.error('Errore insert share_tokens:', insertError)
+      return res.status(500).json({ error: 'Errore creazione token' })
+    }
 
+    const shareToken = inserted[0].token
     return res.status(200).json({
       token: shareToken,
       url: `https://imaginaria-beryl.vercel.app/share/${shareToken}`,
