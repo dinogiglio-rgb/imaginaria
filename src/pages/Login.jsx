@@ -28,7 +28,7 @@ export default function Login() {
     }}>
       {/* Logo */}
       <div style={{ marginBottom: '32px' }}>
-        <img src="/logo-transparent.png" alt="Imaginaria" style={{ height: '64px', width: 'auto' }} />
+        <img src="/logo-transparent.png" alt="Imaginaria" style={{ width: '200px', height: 'auto' }} />
       </div>
 
       {/* Titolo */}
