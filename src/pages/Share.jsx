@@ -37,7 +37,7 @@ export default function Share() {
           .from('drawings')
           .select('id, ai_title, ai_description, original_url, processed_url')
           .eq('id', drawingId)
-          .single(),
+          .limit(1),
         supabase
           .from('renders')
           .select('style, result_url, video_url')
@@ -52,12 +52,13 @@ export default function Share() {
           .limit(1),
       ])
 
-      if (drawingRes.error || !drawingRes.data) {
+      const drawingData = drawingRes.data?.[0] ?? null
+      if (drawingRes.error || !drawingData) {
         setStato('notfound')
         return
       }
 
-      setDrawing(drawingRes.data)
+      setDrawing(drawingData)
       setRenders(rendersRes.data || [])
       setStoria(storieRes.data?.[0] || null)
       setStato('ok')
