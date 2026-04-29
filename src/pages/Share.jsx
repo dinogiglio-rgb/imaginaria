@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
 
 const STILE_LABEL = { cartoon: 'Cartoon', toy: 'Toy', realistic: 'Realistic' }
 
@@ -17,52 +16,20 @@ export default function Share() {
 
   const caricaDati = async () => {
     try {
-      // Trova il drawing_id dal token
-      const { data: rows, error: tokenError } = await supabase
-        .from('share_tokens')
-        .select('drawing_id')
-        .eq('token', token)
-        .limit(1)
-
-      if (tokenError || !rows || rows.length === 0) {
+      const res = await fetch(`/api/drawings/sharedata?token=${token}`)
+      if (!res.ok) {
         setStato('notfound')
         return
       }
-
-      const drawingId = rows[0].drawing_id
-
-      // Carica disegno, render e storia in parallelo
-      const [drawingRes, rendersRes, storieRes] = await Promise.all([
-        supabase
-          .from('drawings')
-          .select('id, ai_title, ai_description, original_url, processed_url')
-          .eq('id', drawingId)
-          .limit(1),
-        supabase
-          .from('renders')
-          .select('style, result_url, video_url')
-          .eq('drawing_id', drawingId)
-          .eq('status', 'completed')
-          .not('result_url', 'is', null),
-        supabase
-          .from('stories')
-          .select('testo, tipo, created_at')
-          .eq('drawing_id', drawingId)
-          .order('created_at', { ascending: false })
-          .limit(1),
-      ])
-
-      const drawingData = drawingRes.data?.[0] ?? null
-      if (drawingRes.error || !drawingData) {
+      const { drawing, renders, storia } = await res.json()
+      if (!drawing) {
         setStato('notfound')
         return
       }
-
-      setDrawing(drawingData)
-      setRenders(rendersRes.data || [])
-      setStoria(storieRes.data?.[0] || null)
+      setDrawing(drawing)
+      setRenders(renders || [])
+      setStoria(storia || null)
       setStato('ok')
-
     } catch (err) {
       console.error('Errore caricamento share:', err)
       setStato('notfound')
