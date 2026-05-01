@@ -23,7 +23,8 @@
       "Bash(git remote *)",
       "Bash(git push *)",
       "Bash(node *)",
-      "Bash(npm ls *)"
+      "Bash(npm ls *)",
+      "Bash(python3 -c ' *)"
     ]
   }
 }
