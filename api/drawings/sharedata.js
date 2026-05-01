@@ -34,8 +34,7 @@ export default async function handler(req, res) {
         .from('renders')
         .select('style, result_url, video_url')
         .eq('drawing_id', drawingId)
-        .eq('status', 'completed')
-        .not('result_url', 'is', null),
+        .eq('status', 'completed'),
       supabase
         .from('stories')
         .select('testo, tipo, created_at')
@@ -46,6 +45,10 @@ export default async function handler(req, res) {
 
     const drawing = drawingRes.data?.[0] ?? null
     if (!drawing) return res.status(404).json({ error: 'Disegno non trovato' })
+
+    if (rendersRes.error) {
+      console.error('Errore renders:', rendersRes.error)
+    }
 
     return res.status(200).json({
       drawing,
