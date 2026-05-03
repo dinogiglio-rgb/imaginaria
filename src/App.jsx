@@ -12,7 +12,14 @@ import ChildGallery from './pages/ChildGallery'
 import Share from './pages/Share'
 import OnboardingFlow from './components/OnboardingFlow'
 
-export default function App() {
+const Spinner = () => (
+  <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAF9F6' }}>
+    <div style={{ width: '48px', height: '48px', borderRadius: '50%', border: '4px solid #f0ede8', borderTopColor: '#FF7F6A', animation: 'spin 0.8s linear infinite' }} />
+    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+  </div>
+)
+
+function AppContent() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [showOnboarding, setShowOnboarding] = useState(null)
@@ -40,53 +47,33 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  if (loading) {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#FAF9F6'
-      }}>
-        <div style={{
-          width: '48px', height: '48px',
-          borderRadius: '50%',
-          border: '4px solid #f0ede8',
-          borderTopColor: '#FF7F6A',
-          animation: 'spin 0.8s linear infinite',
-        }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    )
-  }
+  if (loading) return <Spinner />
 
-  if (user && showOnboarding === null) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAF9F6' }}>
-        <div style={{ width: '48px', height: '48px', borderRadius: '50%', border: '4px solid #f0ede8', borderTopColor: '#FF7F6A', animation: 'spin 0.8s linear infinite' }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    )
-  }
+  if (user && showOnboarding === null) return <Spinner />
 
   if (user && showOnboarding === true) {
     return <OnboardingFlow user={user} onComplete={() => setShowOnboarding(false)} />
   }
 
   return (
+    <Routes>
+      <Route path="/auth/callback" element={<AuthCallback />} />
+      <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
+      <Route path="/" element={user ? <Home user={user} /> : <Navigate to="/login" />} />
+      <Route path="/upload" element={user ? <Upload user={user} /> : <Navigate to="/login" />} />
+      <Route path="/drawing/:id" element={user ? <Drawing user={user} /> : <Navigate to="/login" />} />
+      <Route path="/book" element={user ? <Book user={user} /> : <Navigate to="/login" />} />
+      <Route path="/admin" element={user ? <Admin user={user} /> : <Navigate to="/login" />} />
+      <Route path="/child/:id" element={user ? <ChildGallery user={user} /> : <Navigate to="/login" />} />
+      <Route path="/share/:token" element={<Share />} />
+    </Routes>
+  )
+}
+
+export default function App() {
+  return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/auth/callback" element={<AuthCallback />} />
-        <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
-        <Route path="/" element={user ? <Home user={user} /> : <Navigate to="/login" />} />
-        <Route path="/upload" element={user ? <Upload user={user} /> : <Navigate to="/login" />} />
-        <Route path="/drawing/:id" element={user ? <Drawing user={user} /> : <Navigate to="/login" />} />
-        <Route path="/book" element={user ? <Book user={user} /> : <Navigate to="/login" />} />
-        <Route path="/admin" element={user ? <Admin user={user} /> : <Navigate to="/login" />} />
-        <Route path="/child/:id" element={user ? <ChildGallery user={user} /> : <Navigate to="/login" />} />
-        <Route path="/share/:token" element={<Share />} />
-      </Routes>
+      <AppContent />
     </BrowserRouter>
   )
 }

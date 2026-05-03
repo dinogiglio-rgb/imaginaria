@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 const STEP_STYLE = {
@@ -14,7 +13,6 @@ const STEP_STYLE = {
 }
 
 export default function OnboardingFlow({ user, onComplete }) {
-  const navigate = useNavigate()
   const [step, setStep] = useState(0)
   const [visible, setVisible] = useState(false)
 
@@ -267,7 +265,7 @@ export default function OnboardingFlow({ user, onComplete }) {
         <button
           onClick={() => {
             onComplete()
-            navigate(`/upload${childId ? `?childId=${childId}` : ''}`)
+            window.location.href = '/upload' + (childId ? '?childId=' + childId : '')
           }}
           style={{
             backgroundColor: '#FF7F6A',
@@ -289,7 +287,7 @@ export default function OnboardingFlow({ user, onComplete }) {
         <button
           onClick={() => {
             onComplete()
-            navigate('/')
+            window.location.href = '/'
           }}
           style={{
             backgroundColor: 'transparent',
