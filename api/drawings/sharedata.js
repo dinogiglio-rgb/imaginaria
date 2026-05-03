@@ -31,7 +31,7 @@ export default async function handler(req, res) {
 
     const rendersRes = await supabase
       .from('renders')
-      .select('style, result_url, video_url')
+      .select('style, result_url')
       .eq('drawing_id', drawingId)
       .eq('status', 'completed')
 
@@ -42,16 +42,21 @@ export default async function handler(req, res) {
       .order('created_at', { ascending: false })
       .limit(1)
 
-    const drawing = drawingRes.data && drawingRes.data[0] ? drawingRes.data[0] : null
+    const dr = drawingRes.data
+    const drawing = dr && dr[0] ? dr[0] : null
     if (!drawing) return res.status(404).json({ error: 'Disegno non trovato' })
+
+    const rr = rendersRes.data
+    const sr = storieRes.data
 
     if (rendersRes.error) console.error('Errore renders:', rendersRes.error)
     if (storieRes.error) console.error('Errore storie:', storieRes.error)
 
-    const renders = rendersRes.data ? rendersRes.data : []
-    const storia = storieRes.data && storieRes.data[0] ? storieRes.data[0] : null
-
-    return res.status(200).json({ drawing, renders, storia })
+    return res.status(200).json({
+      drawing: drawing,
+      renders: rr ? rr : [],
+      storia: sr && sr[0] ? sr[0] : null
+    })
 
   } catch (err) {
     console.error('Errore sharedata:', err)
