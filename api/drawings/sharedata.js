@@ -25,7 +25,7 @@ export default async function handler(req, res) {
 
     const drawingRes = await supabase
       .from('drawings')
-      .select('id, ai_title, ai_description, original_url, processed_url')
+      .select('id, ai_title, ai_description, original_url, processed_url, child_age_months, child_id')
       .eq('id', drawingId)
       .limit(1)
 
@@ -55,13 +55,21 @@ export default async function handler(req, res) {
     )
     const sr = storieRes.data
 
+    const childRes = await supabase
+      .from('children')
+      .select('name')
+      .eq('id', drawing.child_id)
+      .limit(1)
+    const childName = childRes.data && childRes.data[0] ? childRes.data[0].name : null
+
     if (rendersRes.error) console.error('Errore renders:', rendersRes.error)
     if (storieRes.error) console.error('Errore storie:', storieRes.error)
 
     return res.status(200).json({
       drawing: drawing,
       renders: renders,
-      storia: sr && sr[0] ? sr[0] : null
+      storia: sr && sr[0] ? sr[0] : null,
+      childName,
     })
 
   } catch (err) {

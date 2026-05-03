@@ -9,6 +9,7 @@ export default function Share() {
   const [drawing, setDrawing] = useState(null)
   const [renders, setRenders] = useState([])
   const [storia, setStoria] = useState(null)
+  const [childName, setChildName] = useState(null)
 
   useEffect(() => {
     caricaDati()
@@ -21,7 +22,8 @@ export default function Share() {
         setStato('notfound')
         return
       }
-      const { drawing, renders, storia } = await res.json()
+      const json = await res.json()
+      const { drawing, renders, storia, childName } = json
       if (!drawing) {
         setStato('notfound')
         return
@@ -29,6 +31,7 @@ export default function Share() {
       setDrawing(drawing)
       setRenders(renders || [])
       setStoria(storia || null)
+      setChildName(childName || null)
       setStato('ok')
     } catch (err) {
       console.error('Errore caricamento share:', err)
@@ -61,6 +64,14 @@ export default function Share() {
 
   const fotoUrl = drawing.processed_url || drawing.original_url
   const video = renders.find(r => r.video_url)
+  const mesi = drawing.child_age_months
+  const anni = mesi ? Math.floor(mesi / 12) : null
+  const mesiRimanenti = mesi ? mesi % 12 : null
+  const etaLabel = anni !== null
+    ? mesiRimanenti > 0 ? anni + ' anni e ' + mesiRimanenti + ' mesi' : anni + ' anni'
+    : null
+  const pageUrl = window.location.href
+  const testoCondivisione = 'Guarda la magia di Imaginaria! ✨ ' + (drawing.ai_title || 'Un disegno magico')
 
   return (
     <div style={{ backgroundColor: '#FAF9F6', minHeight: '100vh', paddingBottom: '48px' }}>
@@ -95,6 +106,21 @@ export default function Share() {
         }}>
           {drawing.ai_title || 'Il disegno magico'}
         </h1>
+
+        {(childName || etaLabel) && (
+          <p style={{
+            fontFamily: 'Inter, sans-serif',
+            fontSize: '0.95rem',
+            color: '#A084E8',
+            textAlign: 'center',
+            margin: '0 0 24px 0',
+            fontWeight: 600,
+          }}>
+            {childName ? '🎨 Disegno di ' + childName : ''}
+            {childName && etaLabel ? ' · ' : ''}
+            {etaLabel ? etaLabel : ''}
+          </p>
+        )}
 
         {/* Foto originale */}
         {fotoUrl && (
@@ -235,6 +261,81 @@ export default function Share() {
           </section>
         )}
 
+        {/* Condivisione */}
+        <section style={{ marginBottom: '32px', textAlign: 'center' }}>
+          <p style={{
+            fontFamily: 'Inter, sans-serif',
+            fontSize: '0.9rem',
+            color: '#888',
+            marginBottom: '12px',
+          }}>
+            Condividi questa magia ✨
+          </p>
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <a
+              href={'https://wa.me/?text=' + encodeURIComponent(testoCondivisione + ' ' + pageUrl)}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                backgroundColor: '#25D366',
+                color: 'white',
+                padding: '12px 20px',
+                borderRadius: '50px',
+                fontFamily: 'Inter, sans-serif',
+                fontWeight: 600,
+                fontSize: '0.9rem',
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              📱 WhatsApp
+            </a>
+            <a
+              href={'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(pageUrl)}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                backgroundColor: '#1877F2',
+                color: 'white',
+                padding: '12px 20px',
+                borderRadius: '50px',
+                fontFamily: 'Inter, sans-serif',
+                fontWeight: 600,
+                fontSize: '0.9rem',
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              👍 Facebook
+            </a>
+            {typeof navigator !== 'undefined' && navigator.share && (
+              <button
+                onClick={() => navigator.share({ title: drawing.ai_title, text: testoCondivisione, url: pageUrl })}
+                style={{
+                  backgroundColor: '#FF7F6A',
+                  color: 'white',
+                  padding: '12px 20px',
+                  borderRadius: '50px',
+                  fontFamily: 'Inter, sans-serif',
+                  fontWeight: 600,
+                  fontSize: '0.9rem',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                🔗 Condividi
+              </button>
+            )}
+          </div>
+        </section>
+
         {/* Footer */}
         <p style={{
           fontFamily: 'Inter, sans-serif',
@@ -243,7 +344,15 @@ export default function Share() {
           textAlign: 'center',
           margin: '8px 0 0 0',
         }}>
-          Creato con Imaginaria ✨
+          Creato con{' '}
+          <a
+            href="https://imaginaria-beryl.vercel.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: '#FF7F6A', fontWeight: 600, textDecoration: 'none' }}
+          >
+            Imaginaria ✨
+          </a>
         </p>
 
       </main>
