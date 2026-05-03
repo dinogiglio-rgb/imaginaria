@@ -33,7 +33,6 @@ export default async function handler(req, res) {
       .from('renders')
       .select('style, result_url, created_at')
       .eq('drawing_id', drawingId)
-      .eq('status', 'completed')
       .order('created_at', { ascending: false })
 
     const storieRes = await supabase
