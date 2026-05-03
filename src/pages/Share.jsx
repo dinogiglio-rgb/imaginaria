@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 
 const STILE_LABEL = { cartoon: 'Cartoon', toy: 'Toy', realistic: 'Realistic' }
+const TIPO_LABEL = { breve: 'Storia Breve 📖', favola: 'Favola ✨', combinata: 'Storia Combinata 🌟' }
 
 export default function Share() {
   const { token } = useParams()
   const [stato, setStato] = useState('loading') // loading | ok | notfound
   const [drawing, setDrawing] = useState(null)
   const [renders, setRenders] = useState([])
-  const [storia, setStoria] = useState(null)
+  const [storie, setStorie] = useState([])
   const [childName, setChildName] = useState(null)
 
   useEffect(() => {
@@ -23,14 +24,14 @@ export default function Share() {
         return
       }
       const json = await res.json()
-      const { drawing, renders, storia, childName } = json
+      const { drawing, renders, storie, childName } = json
       if (!drawing) {
         setStato('notfound')
         return
       }
       setDrawing(drawing)
       setRenders(renders || [])
-      setStoria(storia || null)
+      setStorie(storie || [])
       setChildName(childName || null)
       setStato('ok')
     } catch (err) {
@@ -228,8 +229,8 @@ export default function Share() {
           </section>
         )}
 
-        {/* Storia */}
-        {storia?.testo && (
+        {/* Storie */}
+        {storie.length > 0 && (
           <section style={{ marginBottom: '32px' }}>
             <h2 style={{
               fontFamily: 'Outfit, sans-serif',
@@ -239,24 +240,39 @@ export default function Share() {
               margin: '0 0 16px 0',
               textAlign: 'center',
             }}>
-              La Storia 📖
+              Le Storie 📖
             </h2>
-            <div style={{
-              backgroundColor: '#EDE7F6',
-              borderRadius: '20px',
-              padding: '24px 20px',
-              border: '1px solid #D1C4E9',
-            }}>
-              <p style={{
-                fontFamily: 'Inter, sans-serif',
-                fontSize: '0.97rem',
-                color: '#3D2D5E',
-                lineHeight: 1.85,
-                margin: 0,
-                whiteSpace: 'pre-wrap',
-              }}>
-                {storia.testo}
-              </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {storie.map((s, i) => (
+                <div key={i} style={{
+                  backgroundColor: '#EDE7F6',
+                  borderRadius: '20px',
+                  padding: '24px 20px',
+                  border: '1px solid #D1C4E9',
+                }}>
+                  <p style={{
+                    fontFamily: 'Outfit, sans-serif',
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
+                    color: '#A084E8',
+                    margin: '0 0 12px 0',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                  }}>
+                    {TIPO_LABEL[s.tipo] || s.tipo}
+                  </p>
+                  <p style={{
+                    fontFamily: 'Inter, sans-serif',
+                    fontSize: '0.97rem',
+                    color: '#3D2D5E',
+                    lineHeight: 1.85,
+                    margin: 0,
+                    whiteSpace: 'pre-wrap',
+                  }}>
+                    {s.testo}
+                  </p>
+                </div>
+              ))}
             </div>
           </section>
         )}

@@ -40,7 +40,6 @@ export default async function handler(req, res) {
       .select('testo, tipo, created_at')
       .eq('drawing_id', drawingId)
       .order('created_at', { ascending: false })
-      .limit(1)
 
     const dr = drawingRes.data
     const drawing = dr && dr[0] ? dr[0] : null
@@ -68,7 +67,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       drawing: drawing,
       renders: renders,
-      storia: sr && sr[0] ? sr[0] : null,
+      storie: sr || [],
       childName,
     })
 
