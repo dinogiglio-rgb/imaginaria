@@ -10,14 +10,26 @@ import Book from './pages/Book'
 import Admin from './pages/Admin'
 import ChildGallery from './pages/ChildGallery'
 import Share from './pages/Share'
+import OnboardingFlow from './components/OnboardingFlow'
 
 export default function App() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [showOnboarding, setShowOnboarding] = useState(null)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const u = session?.user ?? null
+      setUser(u)
+      if (u) {
+        const { count } = await supabase
+          .from('children')
+          .select('id', { count: 'exact', head: true })
+          .eq('created_by', u.id)
+        setShowOnboarding(count === 0)
+      } else {
+        setShowOnboarding(false)
+      }
       setLoading(false)
     })
 
@@ -47,6 +59,19 @@ export default function App() {
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     )
+  }
+
+  if (user && showOnboarding === null) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAF9F6' }}>
+        <div style={{ width: '48px', height: '48px', borderRadius: '50%', border: '4px solid #f0ede8', borderTopColor: '#FF7F6A', animation: 'spin 0.8s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    )
+  }
+
+  if (user && showOnboarding === true) {
+    return <OnboardingFlow user={user} onComplete={() => setShowOnboarding(false)} />
   }
 
   return (

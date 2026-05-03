@@ -24,7 +24,9 @@
       "Bash(git push *)",
       "Bash(node *)",
       "Bash(npm ls *)",
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "Bash(git clone *)",
+      "Bash(python3 *)"
     ]
   }
 }
