@@ -22,16 +22,36 @@ export default function Home({ user }) {
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
 
-  useEffect(() => { fetchBambini() }, [])
+  useEffect(() => { loadChildren() }, [])
 
-  const fetchBambini = async () => {
+  const loadChildren = async () => {
     try {
-      const { data, error } = await supabase
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setBambini([])
+        return
+      }
+
+      const { data: memberData, error: memberError } = await supabase
+        .from('family_members')
+        .select('family_id')
+        .eq('user_id', user.id)
+        .single()
+
+      if (memberError || !memberData) {
+        setBambini([])
+        return
+      }
+
+      const { data: childrenData, error: childrenError } = await supabase
         .from('children')
         .select('*, drawings(count)')
-        .order('name', { ascending: true })
-      if (error) throw error
-      setBambini(data || [])
+        .eq('family_id', memberData.family_id)
+        .order('created_at', { ascending: true })
+
+      if (!childrenError) {
+        setBambini(childrenData || [])
+      }
     } catch (err) {
       console.error('Errore caricamento bambini:', err)
     } finally {

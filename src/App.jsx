@@ -10,7 +10,7 @@ import Book from './pages/Book'
 import Admin from './pages/Admin'
 import ChildGallery from './pages/ChildGallery'
 import Share from './pages/Share'
-import OnboardingFlow from './components/OnboardingFlow'
+import FamilySetup from './components/FamilySetup'
 
 const Spinner = () => (
   <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAF9F6' }}>
@@ -22,20 +22,28 @@ const Spinner = () => (
 function AppContent() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [showOnboarding, setShowOnboarding] = useState(null)
+  const [showFamilySetup, setShowFamilySetup] = useState(null)
+  const [userFamilyId, setUserFamilyId] = useState(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       const u = session?.user ?? null
       setUser(u)
       if (u) {
-        const { count } = await supabase
-          .from('children')
-          .select('id', { count: 'exact', head: true })
-          .eq('created_by', u.id)
-        setShowOnboarding(count === 0)
+        const { data: members } = await supabase
+          .from('family_members')
+          .select('family_id')
+          .eq('user_id', u.id)
+          .limit(1)
+        const fid = members?.[0]?.family_id ?? null
+        if (fid) {
+          setUserFamilyId(fid)
+          setShowFamilySetup(false)
+        } else {
+          setShowFamilySetup(true)
+        }
       } else {
-        setShowOnboarding(false)
+        setShowFamilySetup(false)
       }
       setLoading(false)
     })
@@ -49,10 +57,10 @@ function AppContent() {
 
   if (loading) return <Spinner />
 
-  if (user && showOnboarding === null) return <Spinner />
+  if (user && showFamilySetup === null) return <Spinner />
 
-  if (user && showOnboarding === true) {
-    return <OnboardingFlow user={user} onComplete={() => setShowOnboarding(false)} />
+  if (user && showFamilySetup === true) {
+    return <FamilySetup user={user} onComplete={() => setShowFamilySetup(false)} />
   }
 
   return (
