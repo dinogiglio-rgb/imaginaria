@@ -1,63 +1,97 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 export default function AcceptInvite() {
   const { token } = useParams()
   const [status, setStatus] = useState('loading')
+  const handled = useRef(false)
 
-  useEffect(() => {
-    const init = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+  const handleInviteAccept = async (user) => {
+    if (handled.current) return
+    handled.current = true
 
-      if (!user) {
-        localStorage.setItem('pendingInvite', token)
-        setStatus('login_required')
-        return
-      }
+    // Token dall'URL oppure fallback da localStorage (post-OAuth redirect)
+    const inviteToken = token || localStorage.getItem('pendingInvite')
 
-      const { data: invite } = await supabase
-        .from('family_invites')
-        .select('*')
-        .eq('token', token)
-        .eq('status', 'pending')
-        .maybeSingle()
-
-      if (!invite) {
-        setStatus('invalid')
-        return
-      }
-
-      const { data: members } = await supabase
-        .from('family_members')
-        .select('family_id')
-        .eq('user_id', user.id)
-        .limit(1)
-
-      if (members && members.length > 0) {
-        setStatus('already_member')
-        return
-      }
-
-      const { error: insertError } = await supabase
-        .from('family_members')
-        .insert({ family_id: invite.family_id, user_id: user.id, role: 'member' })
-
-      if (insertError) {
-        setStatus('invalid')
-        return
-      }
-
-      await supabase
-        .from('family_invites')
-        .update({ status: 'accepted' })
-        .eq('token', token)
-
-      localStorage.removeItem('pendingInvite')
-      setStatus('success')
+    if (!inviteToken) {
+      setStatus('invalid')
+      return
     }
 
-    init()
+    // Cerca l'invito solo per token, senza filtrare per status
+    const { data: invite } = await supabase
+      .from('family_invites')
+      .select('*')
+      .eq('token', inviteToken)
+      .maybeSingle()
+
+    if (!invite) {
+      setStatus('invalid')
+      return
+    }
+
+    // Controlla lo status in JS
+    if (invite.status !== 'pending') {
+      setStatus('invalid')
+      return
+    }
+
+    // Controlla se è già in una famiglia
+    const { data: members } = await supabase
+      .from('family_members')
+      .select('family_id')
+      .eq('user_id', user.id)
+      .limit(1)
+
+    if (members && members.length > 0) {
+      setStatus('already_member')
+      return
+    }
+
+    // Entra nella famiglia
+    const { error: insertError } = await supabase
+      .from('family_members')
+      .insert({ family_id: invite.family_id, user_id: user.id, role: 'member' })
+
+    if (insertError) {
+      setStatus('invalid')
+      return
+    }
+
+    await supabase
+      .from('family_invites')
+      .update({ status: 'accepted' })
+      .eq('token', inviteToken)
+
+    localStorage.removeItem('pendingInvite')
+    setStatus('success')
+  }
+
+  useEffect(() => {
+    // Listener auth — gestisce sia il caso già loggato sia il post-OAuth redirect
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        await handleInviteAccept(session.user)
+      }
+    })
+
+    // Controlla subito se l'utente è già loggato
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        handleInviteAccept(user)
+      } else {
+        // Non loggato: se non c'è hash OAuth nell'URL mostra subito la schermata login
+        const hasOAuthHash = window.location.hash.includes('access_token')
+        if (!hasOAuthHash) {
+          if (token) localStorage.setItem('pendingInvite', token)
+          setStatus('login_required')
+        }
+        // Se c'è l'hash OAuth rimane in 'loading' e aspetta onAuthStateChange
+      }
+    })
+
+    return () => authListener.subscription.unsubscribe()
   }, [token])
 
   if (status === 'loading') {
@@ -80,10 +114,13 @@ export default function AcceptInvite() {
           Accedi con Google per entrare nella famiglia
         </p>
         <button
-          onClick={() => supabase.auth.signInWithOAuth({
-            provider: 'google',
-            options: { redirectTo: window.location.origin + '/invite/' + token }
-          })}
+          onClick={() => {
+            if (token) localStorage.setItem('pendingInvite', token)
+            supabase.auth.signInWithOAuth({
+              provider: 'google',
+              options: { redirectTo: window.location.origin + '/invite/' + token }
+            })
+          }}
           style={primaryBtnStyle}
         >
           Accedi con Google 🚀
