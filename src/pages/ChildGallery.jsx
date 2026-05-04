@@ -4,6 +4,13 @@ import { supabase } from '../lib/supabase'
 import Header from '../components/Header'
 import DrawingCard from '../components/DrawingCard'
 import EmptyState from '../components/EmptyState'
+function formatDataItaliana(isoString) {
+  const mesi = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
+                 'Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre']
+  const d = new Date(isoString)
+  return `${mesi[d.getMonth()]} ${d.getFullYear()}`
+}
+
 function calcolaEta(birthDate) {
   if (!birthDate) return null
   const nato = new Date(birthDate)
@@ -46,7 +53,7 @@ export default function ChildGallery({ user }) {
     try {
       const { data, error } = await supabase
         .from('drawings')
-        .select('*')
+        .select('*, renders(*)')
         .eq('child_id', id)
         .order('created_at', { ascending: false })
       if (error) throw error
@@ -95,6 +102,40 @@ export default function ChildGallery({ user }) {
 
   const filtriAttivi = filtri.categoria || filtri.ordinamento !== 'recenti'
   const resetFiltri = () => setFiltri({ categoria: '', ordinamento: 'recenti' })
+
+  const confronto = useMemo(() => {
+    const STYLE_PRIORITY = ['cartoon', 'toy', 'realistic']
+    const getBestRender = (d) => {
+      const completed = (d.renders || []).filter(r => r.status === 'completed')
+      if (!completed.length) return null
+      for (const style of STYLE_PRIORITY) {
+        const r = completed.find(r => r.style === style)
+        if (r) return r
+      }
+      return completed[0]
+    }
+    const conRender = drawings.filter(d => getBestRender(d))
+    if (conRender.length < 2) return null
+
+    const recente = conRender[0]
+    const targetDate = new Date()
+    targetDate.setDate(targetDate.getDate() - 365)
+    const antico = [...conRender]
+      .filter(d => d.id !== recente.id)
+      .sort((a, b) =>
+        Math.abs(new Date(a.created_at) - targetDate) -
+        Math.abs(new Date(b.created_at) - targetDate)
+      )[0]
+
+    if (!antico) return null
+    const diffDays = (new Date(recente.created_at) - new Date(antico.created_at)) / 86400000
+    if (diffDays < 60) return null
+
+    return {
+      antico: { ...antico, bestRender: getBestRender(antico) },
+      recente: { ...recente, bestRender: getBestRender(recente) },
+    }
+  }, [drawings])
 
   const isMaschio = bambino?.gender === 'maschio'
   const icona = isMaschio ? '🧒' : '👧'
@@ -175,24 +216,107 @@ export default function ChildGallery({ user }) {
               animation: 'spin 0.8s linear infinite'
             }} />
           </div>
-        ) : drawingsFiltrati.length === 0 ? (
-          <EmptyState />
         ) : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '8px',
-            padding: '4px 12px',
-          }}>
-            {drawingsFiltrati.map(drawing => (
-              <DrawingCard
-                key={drawing.id}
-                drawing={drawing}
-                onClick={() => navigate(`/drawing/${drawing.id}`)}
-                onElimina={(drawId) => setConfermaElimina(drawId)}
-              />
-            ))}
-          </div>
+          <>
+            {confronto && (
+              <div style={{
+                margin: '0 12px 24px',
+                background: 'white',
+                borderRadius: '16px',
+                boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+                padding: '16px',
+              }}>
+                <h2 style={{
+                  fontFamily: 'Outfit, sans-serif', fontWeight: 800,
+                  fontSize: '1.1rem', color: '#A084E8', margin: '0 0 2px 0',
+                }}>
+                  Quanto è cresciuto ✨
+                </h2>
+                <p style={{
+                  fontFamily: 'Inter, sans-serif', fontSize: '0.8rem',
+                  color: '#bbb', margin: '0 0 14px 0',
+                }}>
+                  Un anno fa vs oggi
+                </p>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  {[
+                    { d: confronto.antico, label: 'Un anno fa', colore: '#A084E8' },
+                    { d: confronto.recente, label: 'Oggi', colore: '#FF7F6A' },
+                  ].map(({ d, label, colore }) => (
+                    <div key={d.id} style={{
+                      flex: 1, border: `1.5px solid ${colore}`,
+                      borderRadius: '12px', padding: '10px',
+                      display: 'flex', flexDirection: 'column', gap: '6px',
+                    }}>
+                      <span style={{
+                        fontFamily: 'Inter, sans-serif', fontSize: '0.68rem',
+                        fontWeight: 700, color: colore,
+                        textTransform: 'uppercase', letterSpacing: '0.05em',
+                      }}>
+                        {label}
+                      </span>
+                      <img
+                        src={d.original_url || d.processed_url}
+                        alt={d.ai_title || label}
+                        style={{
+                          width: '100%', aspectRatio: '1', objectFit: 'cover',
+                          borderRadius: '8px', display: 'block',
+                        }}
+                      />
+                      <div style={{
+                        textAlign: 'center', fontSize: '0.75rem',
+                        color: '#ccc', fontFamily: 'Inter, sans-serif',
+                      }}>
+                        ↓
+                      </div>
+                      <img
+                        src={d.bestRender.result_url}
+                        alt="render"
+                        style={{
+                          width: '100%', aspectRatio: '1', objectFit: 'cover',
+                          borderRadius: '8px', display: 'block',
+                        }}
+                      />
+                      <span style={{
+                        fontFamily: 'Inter, sans-serif', fontSize: '0.68rem',
+                        color: '#aaa', marginTop: '2px',
+                      }}>
+                        {formatDataItaliana(d.created_at)}
+                      </span>
+                      {d.ai_title && (
+                        <span style={{
+                          fontFamily: 'Inter, sans-serif', fontSize: '0.68rem',
+                          color: '#666', fontStyle: 'italic',
+                        }}>
+                          {d.ai_title}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {drawingsFiltrati.length === 0 ? (
+              <EmptyState />
+            ) : (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '8px',
+                padding: '4px 12px',
+              }}>
+                {drawingsFiltrati.map(drawing => (
+                  <DrawingCard
+                    key={drawing.id}
+                    drawing={drawing}
+                    onClick={() => navigate(`/drawing/${drawing.id}`)}
+                    onElimina={(drawId) => setConfermaElimina(drawId)}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </main>
 
