@@ -62,7 +62,7 @@ function AppContent() {
 
   if (user && showFamilySetup === null) return <Spinner />
 
-  if (user && showFamilySetup === true && !location.pathname.startsWith('/invite/')) {
+  if (user && showFamilySetup === true && !location.pathname.startsWith('/invite/') && location.pathname !== '/account') {
     return <FamilySetup user={user} onComplete={() => setShowFamilySetup(false)} />
   }
 
