@@ -9,6 +9,7 @@ export default function Account() {
   const [linkInvito, setLinkInvito] = useState(null)
   const [copiato, setCopiato] = useState(false)
   const [generando, setGenerando] = useState(false)
+  const [inviteError, setInviteError] = useState(null)
 
   useEffect(() => { loadData() }, [])
 
@@ -54,23 +55,38 @@ export default function Account() {
 
   const generaECopiaLink = async () => {
     setGenerando(true)
+    setInviteError(null)
     try {
-      const { data: existing } = await supabase
+      const { data: existing, error: fetchError } = await supabase
         .from('family_invites')
         .select('token')
         .eq('family_id', famiglia.id)
         .eq('status', 'pending')
         .maybeSingle()
 
+      if (fetchError) {
+        console.error('Errore fetch invito:', fetchError)
+        setInviteError('Errore: ' + fetchError.message)
+        return
+      }
+
       let inviteToken
       if (existing?.token) {
         inviteToken = existing.token
       } else {
         const newToken = crypto.randomUUID()
-        await supabase
+        const { data: inserted, error: insertError } = await supabase
           .from('family_invites')
           .insert({ family_id: famiglia.id, token: newToken })
-        inviteToken = newToken
+          .select('token')
+          .single()
+
+        if (insertError) {
+          console.error('Errore insert invito:', insertError)
+          setInviteError('Errore: ' + insertError.message)
+          return
+        }
+        inviteToken = inserted.token
       }
 
       const link = window.location.origin + '/invite/' + inviteToken
@@ -79,7 +95,8 @@ export default function Account() {
       setCopiato(true)
       setTimeout(() => setCopiato(false), 4000)
     } catch (err) {
-      console.error(err)
+      console.error('Errore generale:', err)
+      setInviteError('Errore imprevisto: ' + err.message)
     } finally {
       setGenerando(false)
     }
@@ -258,6 +275,15 @@ export default function Account() {
                 >
                   {generando ? '...' : 'Genera link di invito 🔗'}
                 </button>
+
+                {inviteError && (
+                  <p style={{
+                    fontFamily: 'Inter, sans-serif', fontSize: '14px',
+                    color: '#E53935', marginTop: '8px', marginBottom: 0,
+                  }}>
+                    {inviteError}
+                  </p>
+                )}
 
                 {linkInvito && (
                   <div style={{
