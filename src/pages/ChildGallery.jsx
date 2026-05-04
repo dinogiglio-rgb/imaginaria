@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import Header from '../components/Header'
 import DrawingCard from '../components/DrawingCard'
 import EmptyState from '../components/EmptyState'
+import BirthdaySlideshow from '../components/BirthdaySlideshow'
 function formatDataItaliana(isoString) {
   const mesi = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
                  'Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre']
@@ -137,6 +138,52 @@ export default function ChildGallery({ user }) {
     }
   }, [drawings])
 
+  const isCompleanno = useMemo(() => {
+    if (!bambino?.birth_date) return false
+    if (new URLSearchParams(window.location.search).get('preview') === 'birthday') return true
+    const oggi = new Date()
+    const nato = new Date(bambino.birth_date)
+    return oggi.getMonth() === nato.getMonth() && oggi.getDate() === nato.getDate()
+  }, [bambino])
+
+  const allRenders = useMemo(() => {
+    const lista = []
+    for (const d of drawings) {
+      for (const r of (d.renders || [])) {
+        if (r.status === 'completed' && r.result_url) {
+          lista.push({ ...r, drawing_created_at: d.created_at, ai_title: d.ai_title })
+        }
+      }
+    }
+    lista.sort((a, b) => new Date(a.drawing_created_at) - new Date(b.drawing_created_at))
+    return lista
+  }, [drawings])
+
+  const selectedRenders = useMemo(() => {
+    if (allRenders.length <= 30) return allRenders
+    const byMonth = {}
+    for (const r of allRenders) {
+      const key = r.drawing_created_at.substring(0, 7)
+      if (!byMonth[key]) byMonth[key] = []
+      byMonth[key].push(r)
+    }
+    const months = Object.keys(byMonth).sort()
+    const total = allRenders.length
+    const slots = months.map(m => ({ m, base: 0, frac: 0 }))
+    let assigned = 0
+    for (let i = 0; i < slots.length; i++) {
+      const exact = 30 * byMonth[months[i]].length / total
+      slots[i].base = Math.floor(exact)
+      slots[i].frac = exact - slots[i].base
+      assigned += slots[i].base
+    }
+    const remainder = 30 - assigned
+    ;[...slots].sort((a, b) => b.frac - a.frac).slice(0, remainder).forEach(s => s.base++)
+    const result = []
+    for (const s of slots) result.push(...byMonth[s.m].slice(0, s.base))
+    return result
+  }, [allRenders])
+
   const isMaschio = bambino?.gender === 'maschio'
   const icona = isMaschio ? '🧒' : '👧'
   const eta = calcolaEta(bambino?.birth_date)
@@ -218,6 +265,14 @@ export default function ChildGallery({ user }) {
           </div>
         ) : (
           <>
+            {isCompleanno && allRenders.length > 0 && (
+              <BirthdaySlideshow
+                child={bambino}
+                selectedRenders={selectedRenders}
+                allRenders={allRenders}
+              />
+            )}
+
             {confronto && (
               <div style={{
                 margin: '0 12px 24px',
