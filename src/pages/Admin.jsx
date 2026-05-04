@@ -663,6 +663,214 @@ function TabStatistiche({ session }) {
   )
 }
 
+// --- TAB FAMIGLIA ---
+function TabFamiglia({ session }) {
+  const [famiglia, setFamiglia] = useState(null)
+  const [membri, setMembri] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [email, setEmail] = useState('')
+  const [linkInvito, setLinkInvito] = useState(null)
+  const [copiato, setCopiato] = useState(false)
+  const [generando, setGenerando] = useState(false)
+
+  useEffect(() => { fetchFamiglia() }, [])
+
+  const fetchFamiglia = async () => {
+    try {
+      const { data: memberData } = await supabase
+        .from('family_members')
+        .select('family_id, role, families(name, owner_id)')
+        .eq('user_id', session.user.id)
+        .maybeSingle()
+
+      if (!memberData) {
+        setLoading(false)
+        return
+      }
+
+      setFamiglia({
+        id: memberData.family_id,
+        name: memberData.families.name,
+        owner_id: memberData.families.owner_id,
+        myRole: memberData.role,
+      })
+
+      const { data: membriData } = await supabase
+        .from('family_members')
+        .select('role, user_id, profiles(display_name, email)')
+        .eq('family_id', memberData.family_id)
+
+      setMembri(membriData || [])
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const generaLink = async () => {
+    setGenerando(true)
+    try {
+      const { data: existing } = await supabase
+        .from('family_invites')
+        .select('token')
+        .eq('family_id', famiglia.id)
+        .eq('status', 'pending')
+        .maybeSingle()
+
+      let inviteToken
+      if (existing?.token) {
+        inviteToken = existing.token
+      } else {
+        const newToken = crypto.randomUUID()
+        await supabase
+          .from('family_invites')
+          .insert({ family_id: famiglia.id, email: email.trim() || null, token: newToken })
+        inviteToken = newToken
+      }
+
+      setLinkInvito(window.location.origin + '/invite/' + inviteToken)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setGenerando(false)
+    }
+  }
+
+  const copiaLink = async () => {
+    if (!linkInvito) return
+    await navigator.clipboard.writeText(linkInvito)
+    setCopiato(true)
+    setTimeout(() => setCopiato(false), 3000)
+  }
+
+  if (loading) return <LoadingSpinner />
+
+  if (!famiglia) {
+    return (
+      <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+        <p style={{ fontFamily: 'Inter, sans-serif', color: BRAND.muted }}>
+          Non sei ancora in una famiglia.
+        </p>
+      </div>
+    )
+  }
+
+  const isOwner = famiglia.owner_id === session.user.id
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {/* Nome famiglia */}
+      <div style={{
+        background: BRAND.cardBg, borderRadius: '20px',
+        border: `1px solid ${BRAND.border}`, padding: '24px',
+      }}>
+        <div style={{
+          fontFamily: 'Inter, sans-serif', fontSize: '12px', color: BRAND.muted,
+          textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px',
+        }}>
+          La tua famiglia
+        </div>
+        <div style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 800, fontSize: '24px', color: BRAND.coral }}>
+          {famiglia.name}
+        </div>
+      </div>
+
+      {/* Membri */}
+      <div style={{
+        background: BRAND.cardBg, borderRadius: '20px',
+        border: `1px solid ${BRAND.border}`, padding: '24px',
+      }}>
+        <h3 style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 700, fontSize: '16px', color: BRAND.text, margin: '0 0 16px 0' }}>
+          Membri ({membri.length})
+        </h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {membri.map(m => (
+            <div key={m.user_id} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: '15px', color: BRAND.text }}>
+                  {m.profiles?.display_name || m.profiles?.email || '—'}
+                </div>
+                {m.profiles?.display_name && (
+                  <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: BRAND.muted }}>
+                    {m.profiles.email}
+                  </div>
+                )}
+              </div>
+              <span style={{
+                background: m.role === 'owner' ? BRAND.coral + '20' : BRAND.purple + '20',
+                color: m.role === 'owner' ? BRAND.coral : BRAND.purple,
+                padding: '3px 12px', borderRadius: '50px',
+                fontSize: '12px', fontWeight: 700, fontFamily: 'Inter, sans-serif',
+              }}>
+                {m.role === 'owner' ? 'Owner' : 'Membro'}
+              </span>
+            </div>
+          ))}
+          {membri.length === 0 && (
+            <p style={{ color: BRAND.muted, fontFamily: 'Inter, sans-serif', margin: 0 }}>
+              Nessun membro trovato.
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Invita partner (solo owner) */}
+      {isOwner && (
+        <div style={{
+          background: BRAND.cardBg, borderRadius: '20px',
+          border: `1px solid ${BRAND.border}`, padding: '24px',
+        }}>
+          <h3 style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 700, fontSize: '16px', color: BRAND.text, margin: '0 0 6px 0' }}>
+            Invita il partner
+          </h3>
+          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '13px', color: BRAND.muted, margin: '0 0 16px 0' }}>
+            Genera un link da mandare al tuo partner per farlo entrare nella famiglia.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="Email del partner (opzionale)"
+              style={{
+                padding: '10px 16px', borderRadius: '50px',
+                border: `1.5px solid ${BRAND.border}`,
+                fontFamily: 'Inter, sans-serif', fontSize: '14px',
+                outline: 'none', background: '#fff',
+              }}
+            />
+            <button onClick={generaLink} disabled={generando} style={{ ...btn(BRAND.coral), alignSelf: 'flex-start' }}>
+              {generando ? '...' : 'Genera link di invito 🔗'}
+            </button>
+
+            {linkInvito && (
+              <div style={{
+                background: '#f8f6ff', borderRadius: '16px',
+                border: `1.5px solid ${BRAND.purple}30`,
+                padding: '16px',
+                display: 'flex', flexDirection: 'column', gap: '10px',
+              }}>
+                <div style={{
+                  fontFamily: 'Inter, sans-serif', fontSize: '13px', color: BRAND.text,
+                  wordBreak: 'break-all', background: 'white',
+                  padding: '10px 14px', borderRadius: '10px',
+                  border: `1px solid ${BRAND.border}`,
+                }}>
+                  {linkInvito}
+                </div>
+                <button onClick={copiaLink} style={{ ...btn(BRAND.purple), alignSelf: 'flex-start' }}>
+                  {copiato ? '✓ Link copiato! Mandalo al tuo partner 🎉' : 'Copia link 📋'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function LoadingSpinner() {
   return (
     <div style={{ display: 'flex', justifyContent: 'center', padding: '48px' }}>
@@ -683,6 +891,7 @@ export default function Admin({ user }) {
   const navigate = useNavigate()
   const [tab, setTab] = useState('bambini')
   const [session, setSession] = useState(null)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [checking, setChecking] = useState(true)
 
   useEffect(() => {
@@ -696,8 +905,9 @@ export default function Admin({ user }) {
         .eq('id', s.user.id)
         .single()
 
-      if (profile?.role !== 'admin') { navigate('/'); return }
-
+      const admin = profile?.role === 'admin'
+      setIsAdmin(admin)
+      if (!admin) setTab('famiglia')
       setSession(s)
       setChecking(false)
     }
@@ -747,10 +957,11 @@ export default function Admin({ user }) {
           marginBottom: '28px',
           width: 'fit-content',
         }}>
-          <TabButton label="Bambini" active={tab === 'bambini'} onClick={() => setTab('bambini')} />
-          <TabButton label="Utenti" active={tab === 'utenti'} onClick={() => setTab('utenti')} />
-          <TabButton label="Whitelist" active={tab === 'whitelist'} onClick={() => setTab('whitelist')} />
-          <TabButton label="Statistiche" active={tab === 'statistiche'} onClick={() => setTab('statistiche')} />
+          {isAdmin && <TabButton label="Bambini" active={tab === 'bambini'} onClick={() => setTab('bambini')} />}
+          {isAdmin && <TabButton label="Utenti" active={tab === 'utenti'} onClick={() => setTab('utenti')} />}
+          {isAdmin && <TabButton label="Whitelist" active={tab === 'whitelist'} onClick={() => setTab('whitelist')} />}
+          {isAdmin && <TabButton label="Statistiche" active={tab === 'statistiche'} onClick={() => setTab('statistiche')} />}
+          <TabButton label="Famiglia" active={tab === 'famiglia'} onClick={() => setTab('famiglia')} />
         </div>
 
         {/* Contenuto tab */}
@@ -758,6 +969,7 @@ export default function Admin({ user }) {
         {tab === 'utenti' && <TabUtenti session={session} />}
         {tab === 'whitelist' && <TabWhitelist session={session} />}
         {tab === 'statistiche' && <TabStatistiche session={session} />}
+        {tab === 'famiglia' && <TabFamiglia session={session} />}
       </div>
     </div>
   )

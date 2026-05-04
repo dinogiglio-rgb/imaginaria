@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { supabase } from './lib/supabase'
 import Login from './pages/Login'
 import AuthCallback from './pages/AuthCallback'
@@ -11,6 +11,7 @@ import Admin from './pages/Admin'
 import ChildGallery from './pages/ChildGallery'
 import Share from './pages/Share'
 import FamilySetup from './components/FamilySetup'
+import AcceptInvite from './pages/AcceptInvite'
 
 const Spinner = () => (
   <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAF9F6' }}>
@@ -20,6 +21,7 @@ const Spinner = () => (
 )
 
 function AppContent() {
+  const location = useLocation()
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [showFamilySetup, setShowFamilySetup] = useState(null)
@@ -59,7 +61,7 @@ function AppContent() {
 
   if (user && showFamilySetup === null) return <Spinner />
 
-  if (user && showFamilySetup === true) {
+  if (user && showFamilySetup === true && !location.pathname.startsWith('/invite/')) {
     return <FamilySetup user={user} onComplete={() => setShowFamilySetup(false)} />
   }
 
@@ -74,6 +76,7 @@ function AppContent() {
       <Route path="/admin" element={user ? <Admin user={user} /> : <Navigate to="/login" />} />
       <Route path="/child/:id" element={user ? <ChildGallery user={user} /> : <Navigate to="/login" />} />
       <Route path="/share/:token" element={<Share />} />
+      <Route path="/invite/:token" element={<AcceptInvite />} />
     </Routes>
   )
 }
