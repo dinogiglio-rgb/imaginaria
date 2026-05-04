@@ -93,6 +93,24 @@ export default function Header({ user }) {
             }}>
               {user?.email}
             </p>
+            <button
+              onClick={() => { setMenuOpen(false); window.location.href = '/account' }}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#FF7F6A',
+                fontFamily: 'Inter, sans-serif',
+                fontWeight: 600,
+                fontSize: '0.95rem',
+                textAlign: 'left',
+                borderRadius: '8px',
+              }}
+            >
+              👤 Il mio account
+            </button>
             {isAdmin && (
               <>
                 <div style={{ height: '1px', background: '#f0ede8', margin: '4px 0' }} />

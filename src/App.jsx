@@ -12,6 +12,7 @@ import ChildGallery from './pages/ChildGallery'
 import Share from './pages/Share'
 import FamilySetup from './components/FamilySetup'
 import AcceptInvite from './pages/AcceptInvite'
+import Account from './pages/Account'
 
 const Spinner = () => (
   <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAF9F6' }}>
@@ -75,6 +76,7 @@ function AppContent() {
       <Route path="/book" element={user ? <Book user={user} /> : <Navigate to="/login" />} />
       <Route path="/admin" element={user ? <Admin user={user} /> : <Navigate to="/login" />} />
       <Route path="/child/:id" element={user ? <ChildGallery user={user} /> : <Navigate to="/login" />} />
+      <Route path="/account" element={user ? <Account /> : <Navigate to="/login" />} />
       <Route path="/share/:token" element={<Share />} />
       <Route path="/invite/:token" element={<AcceptInvite />} />
     </Routes>
