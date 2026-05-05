@@ -5,6 +5,7 @@ import Header from '../components/Header'
 import DrawingCard from '../components/DrawingCard'
 import EmptyState from '../components/EmptyState'
 import BirthdaySlideshow from '../components/BirthdaySlideshow'
+import WrappedAnnuale from '../components/WrappedAnnuale'
 function formatDataItaliana(isoString) {
   const mesi = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
                  'Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre']
@@ -33,6 +34,7 @@ export default function ChildGallery({ user }) {
   const [drawings, setDrawings] = useState([])
   const [loading, setLoading] = useState(true)
   const [confermaElimina, setConfermaElimina] = useState(null)
+  const [showWrapped, setShowWrapped] = useState(false)
   const [filtriAperti, setFiltriAperti] = useState(false)
   const [filtri, setFiltri] = useState({ categoria: '', ordinamento: 'recenti' })
 
@@ -222,6 +224,19 @@ export default function ChildGallery({ user }) {
             </div>
 
             <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => setShowWrapped(true)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  padding: '8px 14px', background: 'white',
+                  border: '2px solid #A084E8', borderRadius: '50px', cursor: 'pointer',
+                  fontFamily: 'Inter, sans-serif', fontWeight: 600,
+                  fontSize: '0.85rem', color: '#A084E8',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                }}
+              >
+                🎬 Wrapped
+              </button>
               <button
                 onClick={() => navigate(`/book?childId=${id}`)}
                 style={{
@@ -507,6 +522,14 @@ export default function ChildGallery({ user }) {
             </div>
           </div>
         </div>
+      )}
+
+      {showWrapped && (
+        <WrappedAnnuale
+          child={bambino}
+          drawings={drawings}
+          onClose={() => setShowWrapped(false)}
+        />
       )}
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
