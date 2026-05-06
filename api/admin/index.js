@@ -147,6 +147,26 @@ export default async function handler(req, res) {
       })
     }
 
+    if (action === 'reactivateUser') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'Metodo non consentito' })
+      const { userId, userEmail } = req.body
+      if (!userId || !userEmail) return res.status(400).json({ error: 'userId e userEmail richiesti' })
+
+      await supabase
+        .from('profiles')
+        .update({
+          subscription_status: 'active',
+          beta_expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        })
+        .eq('id', userId)
+
+      await supabase
+        .from('allowed_emails')
+        .upsert({ email: userEmail }, { onConflict: 'email' })
+
+      return res.status(200).json({ success: true })
+    }
+
     if (action === 'deleteUser') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'Metodo non consentito' })
       const { userId, userEmail } = req.body

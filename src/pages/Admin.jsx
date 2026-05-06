@@ -44,6 +44,43 @@ function RoleBadge({ role }) {
   )
 }
 
+function StatusBadge({ status }) {
+  if (!status || status === 'active') {
+    return (
+      <span style={{
+        background: '#D4EDDA', color: '#155724',
+        padding: '3px 10px', borderRadius: '50px',
+        fontSize: '11px', fontWeight: 600, fontFamily: 'Inter, sans-serif',
+      }}>
+        ● Attivo
+      </span>
+    )
+  }
+  if (status === 'suspended') {
+    return (
+      <span style={{
+        background: '#FFF3CD', color: '#856404',
+        padding: '3px 10px', borderRadius: '50px',
+        fontSize: '11px', fontWeight: 600, fontFamily: 'Inter, sans-serif',
+      }}>
+        ● Sospeso
+      </span>
+    )
+  }
+  if (status === 'cancelled') {
+    return (
+      <span style={{
+        background: '#F8D7DA', color: '#721C24',
+        padding: '3px 10px', borderRadius: '50px',
+        fontSize: '11px', fontWeight: 600, fontFamily: 'Inter, sans-serif',
+      }}>
+        ● Cancellato
+      </span>
+    )
+  }
+  return null
+}
+
 function TabButton({ label, active, onClick }) {
   return (
     <button onClick={onClick} style={{
@@ -291,6 +328,7 @@ function TabUtenti({ session }) {
   const [updating, setUpdating] = useState(null)
   const [revoking, setRevoking] = useState(null)
   const [deleting, setDeleting] = useState(null)
+  const [reactivating, setReactivating] = useState(null)
 
   useEffect(() => {
     fetchUsers()
@@ -332,12 +370,12 @@ function TabUtenti({ session }) {
   }
 
   const revocaAccesso = async (u) => {
-    if (!confirm(`Revocare l'accesso a ${u.display_name || u.email}?`)) return
+    if (!confirm(`Sospendere l'accesso a ${u.display_name || u.email}?`)) return
     setRevoking(u.id)
     try {
       await supabase
         .from('profiles')
-        .update({ beta_expires_at: '2020-01-01T00:00:00Z' })
+        .update({ beta_expires_at: '2020-01-01T00:00:00Z', subscription_status: 'suspended' })
         .eq('id', u.id)
 
       await supabase
@@ -345,13 +383,42 @@ function TabUtenti({ session }) {
         .delete()
         .eq('email', u.email)
 
-      setUsers(prev => prev.map(x => x.id === u.id ? { ...x, beta_expires_at: '2020-01-01T00:00:00Z' } : x))
-      alert(`Accesso revocato per ${u.display_name || u.email}. ✓`)
+      setUsers(prev => prev.map(x =>
+        x.id === u.id
+          ? { ...x, beta_expires_at: '2020-01-01T00:00:00Z', subscription_status: 'suspended' }
+          : x
+      ))
+      alert(`Accesso sospeso per ${u.display_name || u.email}. ✓`)
     } catch (err) {
       console.error(err)
-      alert('Errore durante la revoca.')
+      alert('Errore durante la sospensione.')
     } finally {
       setRevoking(null)
+    }
+  }
+
+  const riattiva = async (u) => {
+    const nome = u.display_name || u.email
+    if (!confirm(`Riattivare l'accesso a ${nome}?`)) return
+    setReactivating(u.id)
+    try {
+      const res = await fetch('/api/admin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ action: 'reactivateUser', userId: u.id, userEmail: u.email }),
+      })
+      if (!res.ok) throw new Error()
+      setUsers(prev => prev.map(x =>
+        x.id === u.id ? { ...x, subscription_status: 'active' } : x
+      ))
+      alert(`Accesso riattivato per ${nome}! ✅\nL'accesso scadrà tra 14 giorni.`)
+    } catch {
+      alert('Errore durante la riattivazione.')
+    } finally {
+      setReactivating(null)
     }
   }
 
@@ -408,6 +475,7 @@ function TabUtenti({ session }) {
             </div>
           </div>
           <RoleBadge role={u.role || 'user'} />
+          <StatusBadge status={u.subscription_status} />
           {u.id !== session.user.id && (
             <>
               <button
@@ -419,38 +487,44 @@ function TabUtenti({ session }) {
               </button>
               {u.role !== 'admin' && (
                 <>
-                  <button
-                    onClick={() => revocaAccesso(u)}
-                    disabled={revoking === u.id || deleting === u.id}
-                    style={{
-                      padding: '6px 14px',
-                      borderRadius: '50px',
-                      border: 'none',
-                      background: '#FFF3CD',
-                      color: '#856404',
-                      fontFamily: 'Inter, sans-serif',
-                      fontSize: '13px',
-                      fontWeight: 600,
-                      cursor: (revoking === u.id || deleting === u.id) ? 'not-allowed' : 'pointer',
-                      opacity: (revoking === u.id || deleting === u.id) ? 0.6 : 1,
-                    }}
-                  >
-                    {revoking === u.id ? '...' : '🚫 Revoca accesso'}
-                  </button>
+                  {u.subscription_status !== 'suspended' ? (
+                    <button
+                      onClick={() => revocaAccesso(u)}
+                      disabled={revoking === u.id || deleting === u.id}
+                      style={{
+                        padding: '6px 14px', borderRadius: '50px', border: 'none',
+                        background: '#FFF3CD', color: '#856404',
+                        fontFamily: 'Inter, sans-serif', fontSize: '13px', fontWeight: 600,
+                        cursor: (revoking === u.id || deleting === u.id) ? 'not-allowed' : 'pointer',
+                        opacity: (revoking === u.id || deleting === u.id) ? 0.6 : 1,
+                      }}
+                    >
+                      {revoking === u.id ? '...' : '🚫 Sospendi'}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => riattiva(u)}
+                      disabled={reactivating === u.id || deleting === u.id}
+                      style={{
+                        padding: '6px 14px', borderRadius: '50px', border: 'none',
+                        background: '#D4EDDA', color: '#155724',
+                        fontFamily: 'Inter, sans-serif', fontSize: '13px', fontWeight: 600,
+                        cursor: (reactivating === u.id || deleting === u.id) ? 'not-allowed' : 'pointer',
+                        opacity: (reactivating === u.id || deleting === u.id) ? 0.6 : 1,
+                      }}
+                    >
+                      {reactivating === u.id ? '...' : '✅ Riattiva'}
+                    </button>
+                  )}
                   <button
                     onClick={() => eliminaTutto(u)}
-                    disabled={deleting === u.id || revoking === u.id}
+                    disabled={deleting === u.id || revoking === u.id || reactivating === u.id}
                     style={{
-                      padding: '6px 14px',
-                      borderRadius: '50px',
-                      border: 'none',
-                      background: '#F8D7DA',
-                      color: '#721C24',
-                      fontFamily: 'Inter, sans-serif',
-                      fontSize: '13px',
-                      fontWeight: 600,
-                      cursor: (deleting === u.id || revoking === u.id) ? 'not-allowed' : 'pointer',
-                      opacity: (deleting === u.id || revoking === u.id) ? 0.6 : 1,
+                      padding: '6px 14px', borderRadius: '50px', border: 'none',
+                      background: '#F8D7DA', color: '#721C24',
+                      fontFamily: 'Inter, sans-serif', fontSize: '13px', fontWeight: 600,
+                      cursor: (deleting === u.id || revoking === u.id || reactivating === u.id) ? 'not-allowed' : 'pointer',
+                      opacity: (deleting === u.id || revoking === u.id || reactivating === u.id) ? 0.6 : 1,
                     }}
                   >
                     {deleting === u.id ? 'Eliminando...' : '🗑️ Elimina tutto'}
