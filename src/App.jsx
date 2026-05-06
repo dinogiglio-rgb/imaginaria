@@ -21,123 +21,161 @@ const Spinner = () => (
   </div>
 )
 
-function AppContent() {
-  const location = useLocation()
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [showFamilySetup, setShowFamilySetup] = useState(null)
-  const [userFamilyId, setUserFamilyId] = useState(null)
-  const [accessError, setAccessError] = useState(null)
+// Definita FUORI dal componente — non viene mai ricreata, nessun rischio di loop
+async function checkUserAccess(user, { setUser, setLoading, setShowFamilySetup, setAuthError }) {
+  try {
+    // 1. Carica profilo
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('role, beta_expires_at, subscription_status')
+      .eq('id', user.id)
+      .single()
 
-  const checkAndSetUser = async (u) => {
-    if (!u) {
+    if (error || !profile) {
       setUser(null)
       setShowFamilySetup(false)
+      setLoading(false)
       return
     }
 
-    // 1. Carica profilo per determinare il ruolo
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role, beta_expires_at')
-      .eq('id', u.id)
-      .single()
-
     // 2. Admin → accesso diretto, nessun altro controllo
-    if (profile?.role === 'admin') {
-      setUser(u)
-      setAccessError(null)
+    if (profile.role === 'admin') {
       const { data: members } = await supabase
         .from('family_members')
         .select('family_id')
-        .eq('user_id', u.id)
+        .eq('user_id', user.id)
         .limit(1)
-      const fid = members?.[0]?.family_id ?? null
-      if (fid) {
-        setUserFamilyId(fid)
-        setShowFamilySetup(false)
-      } else {
-        setShowFamilySetup(true)
-      }
+      setAuthError(null)
+      setUser({ ...user, role: profile.role })
+      setShowFamilySetup(!members?.[0]?.family_id)
+      setLoading(false)
       return
     }
 
-    // 3. Non-admin → verifica whitelist
+    // 3. Controlla whitelist
     const { data: allowed } = await supabase
       .from('allowed_emails')
       .select('email')
-      .eq('email', u.email)
+      .eq('email', user.email)
       .single()
 
     if (!allowed) {
       await supabase.auth.signOut()
       setUser(null)
       setShowFamilySetup(false)
-      setAccessError('Accesso non autorizzato. Richiedi l\'accesso beta.')
+      setAuthError('Accesso non autorizzato. Richiedi l\'accesso beta.')
+      setLoading(false)
       return
     }
 
-    // Auto-imposta beta_expires_at al primo accesso (14 giorni)
-    if (!profile?.beta_expires_at) {
-      const expiryDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
-      await supabase
-        .from('profiles')
-        .update({ beta_expires_at: expiryDate.toISOString() })
-        .eq('id', u.id)
+    // 4. Controlla subscription_status
+    if (profile.subscription_status === 'suspended') {
+      await supabase.auth.signOut()
+      setUser(null)
+      setShowFamilySetup(false)
+      setAuthError('Il tuo accesso è stato sospeso.')
+      setLoading(false)
+      return
     }
 
-    setUser(u)
-    setAccessError(null)
+    // 5. Controlla scadenza beta
+    if (profile.beta_expires_at && new Date() > new Date(profile.beta_expires_at)) {
+      await supabase.auth.signOut()
+      setUser(null)
+      setShowFamilySetup(false)
+      setAuthError('Il tuo accesso beta è scaduto. Ci vediamo al lancio! 🚀')
+      setLoading(false)
+      return
+    }
 
+    // 6. Auto-imposta beta_expires_at al primo accesso
+    if (!profile.beta_expires_at) {
+      const expiry = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+      await supabase.from('profiles').update({ beta_expires_at: expiry }).eq('id', user.id)
+    }
+
+    // 7. Controlla family membership
     const { data: members } = await supabase
       .from('family_members')
       .select('family_id')
-      .eq('user_id', u.id)
+      .eq('user_id', user.id)
       .limit(1)
-    const fid = members?.[0]?.family_id ?? null
-    if (fid) {
-      setUserFamilyId(fid)
-      setShowFamilySetup(false)
-    } else {
-      setShowFamilySetup(true)
-    }
+
+    setAuthError(null)
+    setUser({ ...user, role: profile.role })
+    setShowFamilySetup(!members?.[0]?.family_id)
+    setLoading(false)
+
+  } catch (err) {
+    console.error('Auth check error:', err)
+    // Qualsiasi errore imprevisto non deve mai bloccare l'app
+    setUser(null)
+    setShowFamilySetup(false)
+    setLoading(false)
   }
+}
+
+function AppContent() {
+  const location = useLocation()
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [showFamilySetup, setShowFamilySetup] = useState(false)
+  const [authError, setAuthError] = useState(null)
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      await checkAndSetUser(session?.user ?? null)
-      setLoading(false)
-    })
+    let mounted = true
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN') {
-        await checkAndSetUser(session?.user ?? null)
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null)
-        setShowFamilySetup(false)
+    // Timeout di sicurezza — se tutto si blocca, esci dallo spinner dopo 6s
+    const safetyTimer = setTimeout(() => {
+      if (mounted) setLoading(false)
+    }, 6000)
+
+    // onAuthStateChange è l'UNICA fonte di verità per lo stato auth
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!mounted) return
+
+        // TOKEN_REFRESHED non richiede un nuovo check completo
+        if (event === 'TOKEN_REFRESHED') return
+
+        if (session?.user) {
+          await checkUserAccess(session.user, { setUser, setLoading, setShowFamilySetup, setAuthError })
+        } else {
+          // SIGNED_OUT o nessuna sessione
+          setUser(null)
+          setShowFamilySetup(false)
+          setLoading(false)
+        }
       }
-    })
+    )
 
-    return () => subscription.unsubscribe()
+    return () => {
+      mounted = false
+      clearTimeout(safetyTimer)
+      subscription.unsubscribe()
+    }
   }, [])
 
   if (loading) return <Spinner />
 
-  // Utente non autenticato → landing page (con eventuali route pubbliche)
+  // Utente non autenticato → landing page
   if (!user) {
     return (
       <Routes>
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/share/:token" element={<Share />} />
         <Route path="/invite/:token" element={<AcceptInvite />} />
-        <Route path="*" element={<LandingPage accessError={accessError} />} />
+        <Route path="*" element={
+          <LandingPage
+            accessError={authError}
+            onLoginClick={() => setAuthError(null)}
+          />
+        } />
       </Routes>
     )
   }
 
-  if (showFamilySetup === null) return <Spinner />
-
-  if (showFamilySetup === true && !location.pathname.startsWith('/invite/') && location.pathname !== '/account') {
+  if (showFamilySetup && !location.pathname.startsWith('/invite/') && location.pathname !== '/account') {
     return <FamilySetup user={user} onComplete={() => setShowFamilySetup(false)} />
   }
 

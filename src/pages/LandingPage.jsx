@@ -25,7 +25,7 @@ const FEATURES = [
   },
 ]
 
-export default function LandingPage({ accessError }) {
+export default function LandingPage({ accessError, onLoginClick }) {
   const [loginLoading, setLoginLoading] = useState(false)
 
   const [form, setForm] = useState({ nome: '', email: '', messaggio: '' })
@@ -33,6 +33,7 @@ export default function LandingPage({ accessError }) {
   const [formStatus, setFormStatus] = useState(null) // null | 'success' | 'duplicate' | 'error'
 
   const handleLogin = async () => {
+    onLoginClick?.()
     try {
       setLoginLoading(true)
       await loginWithGoogle()
