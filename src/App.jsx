@@ -36,32 +36,49 @@ function AppContent() {
       return
     }
 
-    // Carica profilo per verificare il ruolo
+    // 1. Carica profilo per determinare il ruolo
     const { data: profile } = await supabase
       .from('profiles')
       .select('role, beta_expires_at')
       .eq('id', u.id)
       .single()
 
-    // Verifica whitelist solo per utenti non-admin
-    if (profile?.role !== 'admin') {
-      const { data: allowed } = await supabase
-        .from('allowed_emails')
-        .select('email')
-        .eq('email', u.email)
-        .single()
-
-      if (!allowed) {
-        await supabase.auth.signOut()
-        setUser(null)
+    // 2. Admin → accesso diretto, nessun altro controllo
+    if (profile?.role === 'admin') {
+      setUser(u)
+      setAccessError(null)
+      const { data: members } = await supabase
+        .from('family_members')
+        .select('family_id')
+        .eq('user_id', u.id)
+        .limit(1)
+      const fid = members?.[0]?.family_id ?? null
+      if (fid) {
+        setUserFamilyId(fid)
         setShowFamilySetup(false)
-        setAccessError('Accesso non autorizzato. Richiedi l\'accesso beta.')
-        return
+      } else {
+        setShowFamilySetup(true)
       }
+      return
+    }
+
+    // 3. Non-admin → verifica whitelist
+    const { data: allowed } = await supabase
+      .from('allowed_emails')
+      .select('email')
+      .eq('email', u.email)
+      .single()
+
+    if (!allowed) {
+      await supabase.auth.signOut()
+      setUser(null)
+      setShowFamilySetup(false)
+      setAccessError('Accesso non autorizzato. Richiedi l\'accesso beta.')
+      return
     }
 
     // Auto-imposta beta_expires_at al primo accesso (14 giorni)
-    if (profile && profile.role !== 'admin' && !profile.beta_expires_at) {
+    if (!profile?.beta_expires_at) {
       const expiryDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
       await supabase
         .from('profiles')
