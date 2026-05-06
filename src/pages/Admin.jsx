@@ -511,6 +511,196 @@ function TabWhitelist({ session }) {
   )
 }
 
+// --- TAB RICHIESTE BETA ---
+function TabRichiesteBeta({ session }) {
+  const [richieste, setRichieste] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [elaborando, setElaborando] = useState(null)
+
+  useEffect(() => {
+    fetchRichieste()
+  }, [])
+
+  const fetchRichieste = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('beta_requests')
+        .select('*')
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      setRichieste(data || [])
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const approva = async (richiesta) => {
+    setElaborando(richiesta.id)
+    try {
+      // 1. Aggiorna status in beta_requests
+      const { error: upErr } = await supabase
+        .from('beta_requests')
+        .update({ status: 'approved' })
+        .eq('id', richiesta.id)
+      if (upErr) throw upErr
+
+      // 2. Aggiungi alla whitelist tramite API admin
+      await fetch('/api/admin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ action: 'whitelist-add', email: richiesta.email }),
+      })
+
+      // 3. Se esiste già un profilo, imposta beta_expires_at = +14 giorni
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', richiesta.email)
+        .single()
+
+      if (profile) {
+        await supabase
+          .from('profiles')
+          .update({ beta_expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() })
+          .eq('id', profile.id)
+      }
+
+      // 4. Aggiorna lista locale
+      setRichieste(prev => prev.map(r => r.id === richiesta.id ? { ...r, status: 'approved' } : r))
+      alert(`Accesso approvato per ${richiesta.name}! ✓`)
+    } catch (err) {
+      console.error(err)
+      alert('Errore durante l\'approvazione.')
+    } finally {
+      setElaborando(null)
+    }
+  }
+
+  const rifiuta = async (richiesta) => {
+    setElaborando(richiesta.id)
+    try {
+      const { error } = await supabase
+        .from('beta_requests')
+        .update({ status: 'rejected' })
+        .eq('id', richiesta.id)
+      if (error) throw error
+      setRichieste(prev => prev.map(r => r.id === richiesta.id ? { ...r, status: 'rejected' } : r))
+      alert('Richiesta rifiutata.')
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setElaborando(null)
+    }
+  }
+
+  const statusBadge = (status) => {
+    const styles = {
+      pending: { background: '#FFF3CD', color: '#856404', label: 'In attesa' },
+      approved: { background: '#D4EDDA', color: '#155724', label: 'Approvato' },
+      rejected: { background: '#F8D7DA', color: '#721C24', label: 'Rifiutato' },
+    }
+    const s = styles[status] || styles.pending
+    return (
+      <span style={{
+        background: s.background, color: s.color,
+        padding: '3px 12px', borderRadius: '50px',
+        fontSize: '12px', fontWeight: 700,
+        fontFamily: 'Inter, sans-serif',
+      }}>
+        {s.label}
+      </span>
+    )
+  }
+
+  if (loading) return <LoadingSpinner />
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      {richieste.length === 0 && (
+        <p style={{ color: BRAND.muted, fontFamily: 'Inter, sans-serif', textAlign: 'center', marginTop: '32px' }}>
+          Nessuna richiesta ancora.
+        </p>
+      )}
+      {richieste.map(r => (
+        <div key={r.id} style={{
+          background: BRAND.cardBg,
+          borderRadius: '16px',
+          border: `1px solid ${BRAND.border}`,
+          padding: '16px 20px',
+          display: 'flex', flexDirection: 'column', gap: '8px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 700, fontSize: '16px', color: BRAND.text }}>
+                {r.name}
+              </div>
+              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '14px', color: BRAND.muted, marginTop: '2px' }}>
+                {r.email}
+              </div>
+            </div>
+            {statusBadge(r.status || 'pending')}
+          </div>
+
+          {r.message && (
+            <p style={{
+              fontFamily: 'Inter, sans-serif', fontSize: '14px',
+              color: '#444', fontStyle: 'italic',
+              margin: '0', lineHeight: 1.5,
+              background: '#FAF9F6', borderRadius: '10px', padding: '10px 14px',
+            }}>
+              "{r.message}"
+            </p>
+          )}
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+            <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: BRAND.muted }}>
+              {r.created_at ? new Date(r.created_at).toLocaleDateString('it-IT', {
+                day: 'numeric', month: 'long', year: 'numeric',
+              }) : '—'}
+            </span>
+
+            {(!r.status || r.status === 'pending') && (
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => approva(r)}
+                  disabled={elaborando === r.id}
+                  style={{
+                    padding: '7px 18px', borderRadius: '50px', border: 'none',
+                    background: '#D4EDDA', color: '#155724',
+                    fontFamily: 'Inter, sans-serif', fontSize: '13px',
+                    fontWeight: 600, cursor: elaborando === r.id ? 'not-allowed' : 'pointer',
+                    opacity: elaborando === r.id ? 0.6 : 1,
+                  }}
+                >
+                  {elaborando === r.id ? '...' : '✓ Approva'}
+                </button>
+                <button
+                  onClick={() => rifiuta(r)}
+                  disabled={elaborando === r.id}
+                  style={{
+                    padding: '7px 18px', borderRadius: '50px', border: 'none',
+                    background: '#F8D7DA', color: '#721C24',
+                    fontFamily: 'Inter, sans-serif', fontSize: '13px',
+                    fontWeight: 600, cursor: elaborando === r.id ? 'not-allowed' : 'pointer',
+                    opacity: elaborando === r.id ? 0.6 : 1,
+                  }}
+                >
+                  ✗ Rifiuta
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // --- TAB STATISTICHE ---
 function TabStatistiche({ session }) {
   const [stats, setStats] = useState(null)
@@ -684,6 +874,15 @@ export default function Admin({ user }) {
   const [tab, setTab] = useState('bambini')
   const [session, setSession] = useState(null)
   const [checking, setChecking] = useState(true)
+  const [pendingCount, setPendingCount] = useState(0)
+
+  useEffect(() => {
+    supabase
+      .from('beta_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending')
+      .then(({ count }) => setPendingCount(count || 0))
+  }, [])
 
   useEffect(() => {
     const check = async () => {
@@ -744,11 +943,18 @@ export default function Admin({ user }) {
           borderRadius: '50px',
           padding: '4px',
           marginBottom: '28px',
-          width: 'fit-content',
+          overflowX: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          scrollbarWidth: 'none',
         }}>
           <TabButton label="Bambini" active={tab === 'bambini'} onClick={() => setTab('bambini')} />
           <TabButton label="Utenti" active={tab === 'utenti'} onClick={() => setTab('utenti')} />
           <TabButton label="Whitelist" active={tab === 'whitelist'} onClick={() => setTab('whitelist')} />
+          <TabButton
+            label={pendingCount > 0 ? `🔔 Richieste Beta (${pendingCount})` : '🔔 Richieste Beta'}
+            active={tab === 'richieste'}
+            onClick={() => setTab('richieste')}
+          />
           <TabButton label="Statistiche" active={tab === 'statistiche'} onClick={() => setTab('statistiche')} />
         </div>
 
@@ -756,6 +962,7 @@ export default function Admin({ user }) {
         {tab === 'bambini' && <TabBambini session={session} />}
         {tab === 'utenti' && <TabUtenti session={session} />}
         {tab === 'whitelist' && <TabWhitelist session={session} />}
+        {tab === 'richieste' && <TabRichiesteBeta session={session} />}
         {tab === 'statistiche' && <TabStatistiche session={session} />}
       </div>
     </div>
