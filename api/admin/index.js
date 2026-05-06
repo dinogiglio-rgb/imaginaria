@@ -147,6 +147,46 @@ export default async function handler(req, res) {
       })
     }
 
+    if (action === 'deleteUser') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'Metodo non consentito' })
+      const { userId, userEmail } = req.body
+      if (!userId || !userEmail) return res.status(400).json({ error: 'userId e userEmail richiesti' })
+
+      const { data: children } = await supabase
+        .from('children')
+        .select('id')
+        .eq('created_by', userId)
+      const childIds = children?.map(c => c.id) || []
+
+      const { data: drawings } = await supabase
+        .from('drawings')
+        .select('id')
+        .eq('author_id', userId)
+      const drawingIds = drawings?.map(d => d.id) || []
+
+      if (drawingIds.length > 0) {
+        await supabase.from('renders').delete().in('drawing_id', drawingIds)
+        await supabase.from('share_tokens').delete().in('drawing_id', drawingIds)
+      }
+
+      await supabase.from('stories').delete().eq('author_id', userId)
+      await supabase.from('drawings').delete().eq('author_id', userId)
+
+      if (childIds.length > 0) {
+        await supabase.from('children').delete().in('id', childIds)
+      }
+
+      await supabase.from('family_members').delete().eq('user_id', userId)
+      await supabase.from('push_subscriptions').delete().eq('user_id', userId)
+      await supabase.from('allowed_emails').delete().eq('email', userEmail)
+      await supabase.from('beta_requests').delete().eq('email', userEmail)
+      await supabase.from('profiles').delete().eq('id', userId)
+
+      await supabase.auth.admin.deleteUser(userId)
+
+      return res.status(200).json({ success: true })
+    }
+
     return res.status(400).json({ error: 'Action non valida' })
   } catch (err) {
     console.error('Errore admin:', err)

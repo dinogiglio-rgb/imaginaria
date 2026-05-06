@@ -290,6 +290,7 @@ function TabUtenti({ session }) {
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(null)
   const [revoking, setRevoking] = useState(null)
+  const [deleting, setDeleting] = useState(null)
 
   useEffect(() => {
     fetchUsers()
@@ -354,6 +355,30 @@ function TabUtenti({ session }) {
     }
   }
 
+  const eliminaTutto = async (u) => {
+    const nome = u.display_name || u.email
+    if (!confirm(`Eliminare ${nome}? Questa azione è IRREVERSIBILE.`)) return
+    if (!confirm(`Sei sicuro? Tutti i disegni, render e storie di ${nome} verranno cancellati per sempre.`)) return
+    setDeleting(u.id)
+    try {
+      const res = await fetch('/api/admin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ action: 'deleteUser', userId: u.id, userEmail: u.email }),
+      })
+      if (!res.ok) throw new Error()
+      setUsers(prev => prev.filter(x => x.id !== u.id))
+      alert('Utente eliminato completamente. ✓')
+    } catch {
+      alert('Errore durante l\'eliminazione. Riprova o contatta il supporto.')
+    } finally {
+      setDeleting(null)
+    }
+  }
+
   if (loading) return <LoadingSpinner />
 
   return (
@@ -393,24 +418,44 @@ function TabUtenti({ session }) {
                 {updating === u.id ? '...' : u.role === 'admin' ? 'Rendi User' : 'Rendi Admin'}
               </button>
               {u.role !== 'admin' && (
-                <button
-                  onClick={() => revocaAccesso(u)}
-                  disabled={revoking === u.id}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: '50px',
-                    border: 'none',
-                    background: '#F8D7DA',
-                    color: '#721C24',
-                    fontFamily: 'Inter, sans-serif',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    cursor: revoking === u.id ? 'not-allowed' : 'pointer',
-                    opacity: revoking === u.id ? 0.6 : 1,
-                  }}
-                >
-                  {revoking === u.id ? '...' : '🚫 Revoca accesso'}
-                </button>
+                <>
+                  <button
+                    onClick={() => revocaAccesso(u)}
+                    disabled={revoking === u.id || deleting === u.id}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: '50px',
+                      border: 'none',
+                      background: '#FFF3CD',
+                      color: '#856404',
+                      fontFamily: 'Inter, sans-serif',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      cursor: (revoking === u.id || deleting === u.id) ? 'not-allowed' : 'pointer',
+                      opacity: (revoking === u.id || deleting === u.id) ? 0.6 : 1,
+                    }}
+                  >
+                    {revoking === u.id ? '...' : '🚫 Revoca accesso'}
+                  </button>
+                  <button
+                    onClick={() => eliminaTutto(u)}
+                    disabled={deleting === u.id || revoking === u.id}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: '50px',
+                      border: 'none',
+                      background: '#F8D7DA',
+                      color: '#721C24',
+                      fontFamily: 'Inter, sans-serif',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      cursor: (deleting === u.id || revoking === u.id) ? 'not-allowed' : 'pointer',
+                      opacity: (deleting === u.id || revoking === u.id) ? 0.6 : 1,
+                    }}
+                  >
+                    {deleting === u.id ? 'Eliminando...' : '🗑️ Elimina tutto'}
+                  </button>
+                </>
               )}
             </>
           )}
