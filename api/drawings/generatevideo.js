@@ -2,6 +2,29 @@ import { fal } from '@fal-ai/client'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 
+async function checkBetaAccess(supabase, userId) {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role, beta_expires_at')
+    .eq('id', userId)
+    .single()
+
+  if (!profile) return { allowed: false, reason: 'profilo non trovato' }
+  if (profile.role === 'admin') return { allowed: true }
+
+  if (profile.beta_expires_at) {
+    const expires = new Date(profile.beta_expires_at)
+    if (new Date() > expires) {
+      return {
+        allowed: false,
+        reason: 'Hai raggiunto il limite beta, ci vediamo al lancio! 🚀'
+      }
+    }
+  }
+
+  return { allowed: true, role: profile.role }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
 
@@ -21,6 +44,32 @@ export default async function handler(req, res) {
   try {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
     if (authError || !user) return res.status(401).json({ error: 'Token non valido' })
+
+    const betaAccess = await checkBetaAccess(supabase, user.id)
+    if (!betaAccess.allowed) return res.status(403).json({ error: betaAccess.reason })
+
+    // Controlla limite video totali (4 per utenti beta)
+    const { data: userDrawings } = await supabase
+      .from('drawings')
+      .select('id')
+      .eq('author_id', user.id)
+
+    const drawingIds = (userDrawings || []).map(d => d.id)
+
+    if (drawingIds.length > 0) {
+      const { count: videoTotali } = await supabase
+        .from('renders')
+        .select('id', { count: 'exact', head: true })
+        .in('drawing_id', drawingIds)
+        .not('video_url', 'is', null)
+
+      if (videoTotali >= 4) {
+        return res.status(403).json({
+          error: 'Hai raggiunto il limite beta, ci vediamo al lancio! 🚀',
+          limitReached: 'videos'
+        })
+      }
+    }
 
     // STEP 1 — Claude genera un prompt video personalizzato dalla storia
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })

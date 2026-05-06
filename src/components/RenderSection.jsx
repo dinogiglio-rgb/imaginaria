@@ -22,7 +22,7 @@ const STILI = [
   }
 ];
 
-export default function RenderSection({ drawingId, hasAiPrompt }) {
+export default function RenderSection({ drawingId, hasAiPrompt, userRole, rendersOggi = 0, onRenderCompleted }) {
   const [renders, setRenders] = useState({});
   const [loading, setLoading] = useState({});
   const [activeRender, setActiveRender] = useState(null);
@@ -80,11 +80,17 @@ export default function RenderSection({ drawingId, hasAiPrompt }) {
 
       const data = await res.json();
 
+      if (res.status === 403) {
+        alert(data.error || 'Hai raggiunto il limite beta, ci vediamo al lancio! 🚀');
+        return;
+      }
+
       if (data.success) {
         const urlNoCache = `${data.render_url}?t=${Date.now()}`;
         setRenders(prev => ({ ...prev, [style]: urlNoCache }));
         setActiveRender(style);
         setRefinementPrompt('');
+        onRenderCompleted?.();
       } else {
         alert(data.error || 'Errore nella generazione. Riprova!');
       }
@@ -106,13 +112,28 @@ export default function RenderSection({ drawingId, hasAiPrompt }) {
         Scegli uno stile per trasformare il disegno con l'AI
       </p>
 
+      {/* Quota renders */}
+      {userRole !== 'admin' && (
+        <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {rendersOggi >= 10 ? (
+            <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#FF7F6A' }}>
+              Limite raggiunto 🚀
+            </span>
+          ) : (
+            <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#aaa' }}>
+              {rendersOggi}/10 render oggi
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Bottoni stile */}
       <div className="grid grid-cols-3 gap-3 mb-6">
         {STILI.map(stile => (
           <button
             key={stile.id}
             onClick={() => generaRender(stile.id)}
-            disabled={loading[stile.id]}
+            disabled={loading[stile.id] || (userRole !== 'admin' && rendersOggi >= 10)}
             className={`
               relative flex flex-col items-center justify-center p-3 rounded-[16px]
               bg-gradient-to-br ${stile.color} text-white

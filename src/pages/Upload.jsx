@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import ImageCropper from '../components/ImageCropper'
 
@@ -10,6 +10,8 @@ const CATEGORIE = [
 
 export default function Upload({ user }) {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const childId = searchParams.get('childId')
   const fileInputRef = useRef(null)
   const cameraInputRef = useRef(null)
 
@@ -71,6 +73,34 @@ export default function Upload({ user }) {
       setLoading(true)
       setErrore(null)
 
+      // Verifica limiti beta
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role, beta_expires_at')
+        .eq('id', user.id)
+        .single()
+
+      if (profile && profile.role !== 'admin') {
+        if (profile.beta_expires_at && new Date() > new Date(profile.beta_expires_at)) {
+          setErrore('Hai raggiunto il limite beta, ci vediamo al lancio! 🚀')
+          setLoading(false)
+          return
+        }
+
+        if (childId) {
+          const { count: drawingsCount } = await supabase
+            .from('drawings')
+            .select('id', { count: 'exact', head: true })
+            .eq('child_id', childId)
+
+          if (drawingsCount >= 4) {
+            setErrore('Hai raggiunto il limite beta, ci vediamo al lancio! 🚀')
+            setLoading(false)
+            return
+          }
+        }
+      }
+
       // 1. Crea il record disegno nel database
       const categoriaFinale = categoriaCustom
         ? form.categoriaPersonalizzata
@@ -80,6 +110,7 @@ export default function Upload({ user }) {
         .from('drawings')
         .insert({
           author_id: user.id,
+          child_id: childId || null,
           title: form.titolo || null,
           category: categoriaFinale || null,
           notes: form.note || null,

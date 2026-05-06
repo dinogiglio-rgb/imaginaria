@@ -37,11 +37,23 @@ export default function ChildGallery({ user }) {
   const [showWrapped, setShowWrapped] = useState(false)
   const [filtriAperti, setFiltriAperti] = useState(false)
   const [filtri, setFiltri] = useState({ categoria: '', ordinamento: 'recenti' })
+  const [userProfile, setUserProfile] = useState(null)
 
   useEffect(() => {
     fetchBambino()
     fetchDrawings()
+    fetchUserProfile()
   }, [id])
+
+  const fetchUserProfile = async () => {
+    if (!user?.id) return
+    const { data } = await supabase
+      .from('profiles')
+      .select('role, beta_expires_at')
+      .eq('id', user.id)
+      .single()
+    setUserProfile(data)
+  }
 
   const fetchBambino = async () => {
     const { data } = await supabase
@@ -217,10 +229,31 @@ export default function ChildGallery({ user }) {
               }}>
                 {bambino?.name} {icona}
               </h1>
-              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', color: '#999', margin: '0 0 10px 0' }}>
+              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', color: '#999', margin: '0 0 6px 0' }}>
                 {eta && `${eta} · `}{drawingsFiltrati.length} disegn{drawingsFiltrati.length === 1 ? 'o' : 'i'}
                 {filtriAttivi ? ' (filtrati)' : ''}
               </p>
+              {userProfile && userProfile.role !== 'admin' && (
+                <div style={{ marginBottom: '10px' }}>
+                  <div style={{
+                    fontFamily: 'Inter, sans-serif', fontSize: '13px',
+                    color: '#aaa', marginBottom: '4px'
+                  }}>
+                    {drawings.length}/4 disegni beta utilizzati
+                  </div>
+                  <div style={{
+                    width: '160px', height: '4px',
+                    backgroundColor: '#eee', borderRadius: '50px', overflow: 'hidden'
+                  }}>
+                    <div style={{
+                      height: '100%',
+                      width: `${Math.min(drawings.length / 4 * 100, 100)}%`,
+                      backgroundColor: drawings.length >= 4 ? '#E53E3E' : '#FF7F6A',
+                      borderRadius: '50px',
+                    }} />
+                  </div>
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'flex', gap: '8px' }}>

@@ -6,6 +6,29 @@ if (!process.env.FAL_KEY) {
   console.error('❌ FAL_KEY mancante nel file .env');
 }
 
+async function checkBetaAccess(supabase, userId) {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role, beta_expires_at')
+    .eq('id', userId)
+    .single()
+
+  if (!profile) return { allowed: false, reason: 'profilo non trovato' }
+  if (profile.role === 'admin') return { allowed: true }
+
+  if (profile.beta_expires_at) {
+    const expires = new Date(profile.beta_expires_at)
+    if (new Date() > expires) {
+      return {
+        allowed: false,
+        reason: 'Hai raggiunto il limite beta, ci vediamo al lancio! 🚀'
+      }
+    }
+  }
+
+  return { allowed: true, role: profile.role }
+}
+
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -51,6 +74,35 @@ export default async function handler(req, res) {
 
   const { data: { user }, error: authError } = await supabase.auth.getUser(token);
   if (authError || !user) return res.status(401).json({ error: 'Token non valido' });
+
+  const betaAccess = await checkBetaAccess(supabase, user.id);
+  if (!betaAccess.allowed) return res.status(403).json({ error: betaAccess.reason });
+
+  // Controlla limite render giornaliero (10/giorno per utenti beta)
+  const oggi = new Date();
+  oggi.setHours(0, 0, 0, 0);
+
+  const { data: userDrawings } = await supabase
+    .from('drawings')
+    .select('id')
+    .eq('author_id', user.id);
+
+  const drawingIds = (userDrawings || []).map(d => d.id);
+
+  if (drawingIds.length > 0) {
+    const { count: renderOggi } = await supabase
+      .from('renders')
+      .select('id', { count: 'exact', head: true })
+      .in('drawing_id', drawingIds)
+      .gte('created_at', oggi.toISOString());
+
+    if (renderOggi >= 10) {
+      return res.status(403).json({
+        error: 'Hai raggiunto il limite beta, ci vediamo al lancio! 🚀',
+        limitReached: 'renders'
+      });
+    }
+  }
 
   // drawing_id, style — obbligatori sempre
   // refinement_prompt — testo aggiuntivo opzionale

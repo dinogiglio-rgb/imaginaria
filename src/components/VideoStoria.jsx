@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
-export default function VideoStoria({ renderUrl, storyText, drawingTitle, drawingId, style }) {
+export default function VideoStoria({ renderUrl, storyText, drawingTitle, drawingId, style, userRole, videoTotali = 0, onVideoCompleted }) {
   const [fase, setFase] = useState('idle') // idle | avvio | attesa | completato | errore
   const [videoUrl, setVideoUrl] = useState(null)
   const [errore, setErrore] = useState(null)
@@ -50,6 +50,7 @@ export default function VideoStoria({ renderUrl, storyText, drawingTitle, drawin
         })
       })
       const data = await res.json()
+      if (res.status === 403) throw new Error(data.error || 'Hai raggiunto il limite beta, ci vediamo al lancio! 🚀')
       if (data.error) throw new Error(data.error)
 
       setFase('attesa')
@@ -75,6 +76,7 @@ export default function VideoStoria({ renderUrl, storyText, drawingTitle, drawin
             clearInterval(contatoreRef.current)
             setVideoUrl(statusData.video_url)
             setFase('completato')
+            onVideoCompleted?.()
           } else if (statusData.status === 'failed') {
             clearInterval(intervalRef.current)
             clearInterval(contatoreRef.current)
@@ -119,18 +121,37 @@ export default function VideoStoria({ renderUrl, storyText, drawingTitle, drawin
     <div style={{ marginTop: '12px' }}>
 
       {fase === 'idle' && (
-        <button
-          onClick={avviaVideo}
-          style={{
-            width: '100%', padding: '13px', borderRadius: '50px',
-            background: 'linear-gradient(135deg, #B2EBF2, #A084E8)',
-            color: 'white', fontFamily: 'Outfit, sans-serif',
-            fontWeight: 700, fontSize: '0.95rem',
-            border: 'none', cursor: 'pointer'
-          }}
-        >
-          🎬 Genera video della storia
-        </button>
+        <div>
+          {userRole !== 'admin' && (
+            <div style={{ marginBottom: '6px' }}>
+              {videoTotali >= 4 ? (
+                <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#FF7F6A' }}>
+                  Limite raggiunto 🚀
+                </span>
+              ) : (
+                <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#aaa' }}>
+                  {videoTotali}/4 video totali
+                </span>
+              )}
+            </div>
+          )}
+          <button
+            onClick={avviaVideo}
+            disabled={userRole !== 'admin' && videoTotali >= 4}
+            style={{
+              width: '100%', padding: '13px', borderRadius: '50px',
+              background: (userRole !== 'admin' && videoTotali >= 4)
+                ? '#ccc'
+                : 'linear-gradient(135deg, #B2EBF2, #A084E8)',
+              color: 'white', fontFamily: 'Outfit, sans-serif',
+              fontWeight: 700, fontSize: '0.95rem',
+              border: 'none',
+              cursor: (userRole !== 'admin' && videoTotali >= 4) ? 'not-allowed' : 'pointer'
+            }}
+          >
+            🎬 Genera video della storia
+          </button>
+        </div>
       )}
 
       {fase === 'avvio' && (

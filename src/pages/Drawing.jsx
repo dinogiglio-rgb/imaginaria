@@ -32,10 +32,53 @@ export default function Drawing({ user }) {
   const [mostraViewer, setMostraViewer] = useState(false)
   const [stileSceltoVideo, setStileSceltoVideo] = useState(null)
   const [shareStato, setShareStato] = useState(null) // null | 'loading' | 'copied' | 'error'
+  const [userRole, setUserRole] = useState(null)
+  const [rendersOggi, setRendersOggi] = useState(0)
+  const [videoTotali, setVideoTotali] = useState(0)
 
   useEffect(() => {
     fetchDrawing()
+    fetchBetaQuotas()
   }, [id])
+
+  const fetchBetaQuotas = async () => {
+    if (!user?.id) return
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    setUserRole(profile?.role || null)
+    if (profile?.role === 'admin') return
+
+    const { data: userDrawings } = await supabase
+      .from('drawings')
+      .select('id')
+      .eq('author_id', user.id)
+
+    const drawingIds = (userDrawings || []).map(d => d.id)
+    if (drawingIds.length === 0) return
+
+    const oggi = new Date()
+    oggi.setHours(0, 0, 0, 0)
+
+    const [{ count: rc }, { count: vc }] = await Promise.all([
+      supabase
+        .from('renders')
+        .select('id', { count: 'exact', head: true })
+        .in('drawing_id', drawingIds)
+        .gte('created_at', oggi.toISOString()),
+      supabase
+        .from('renders')
+        .select('id', { count: 'exact', head: true })
+        .in('drawing_id', drawingIds)
+        .not('video_url', 'is', null),
+    ])
+
+    setRendersOggi(rc || 0)
+    setVideoTotali(vc || 0)
+  }
 
   const fetchDrawing = async () => {
     try {
@@ -641,6 +684,9 @@ export default function Drawing({ user }) {
                           drawingTitle={drawing?.ai_title || drawing?.title}
                           drawingId={drawing?.id}
                           style={stileSceltoVideo || drawing?.renders?.find(r => r.result_url)?.style}
+                          userRole={userRole}
+                          videoTotali={videoTotali}
+                          onVideoCompleted={fetchBetaQuotas}
                         />
                       </div>
                     </div>
@@ -655,6 +701,9 @@ export default function Drawing({ user }) {
         <RenderSection
           drawingId={drawing?.id}
           hasAiPrompt={!!drawing?.ai_prompt_render}
+          userRole={userRole}
+          rendersOggi={rendersOggi}
+          onRenderCompleted={fetchBetaQuotas}
         />
 
         {/* Pulsante 3D */}
@@ -1003,6 +1052,9 @@ export default function Drawing({ user }) {
                   drawingTitle={drawing?.ai_title || drawing?.title}
                   drawingId={drawing?.id}
                   style={stileSceltoVideo || drawing?.renders?.find(r => r.result_url)?.style}
+                  userRole={userRole}
+                  videoTotali={videoTotali}
+                  onVideoCompleted={fetchBetaQuotas}
                 />
               </div>
             ) : (
