@@ -46,7 +46,7 @@ async function checkUserAccess(user, { setUser, setLoading, setShowFamilySetup, 
         .eq('user_id', user.id)
         .limit(1)
       setAuthError(null)
-      setUser({ ...user, role: profile.role })
+      setUser({ id: user.id, email: user.email, ...profile })
       setShowFamilySetup(!members?.[0]?.family_id)
       setLoading(false)
       return
@@ -102,7 +102,7 @@ async function checkUserAccess(user, { setUser, setLoading, setShowFamilySetup, 
       .limit(1)
 
     setAuthError(null)
-    setUser({ ...user, role: profile.role })
+    setUser({ id: user.id, email: user.email, ...profile })
     setShowFamilySetup(!members?.[0]?.family_id)
     setLoading(false)
 

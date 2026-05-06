@@ -40,6 +40,7 @@ export default function ChildGallery({ user }) {
   const [userProfile, setUserProfile] = useState(null)
 
   useEffect(() => {
+    if (!id) return
     fetchBambino()
     fetchDrawings()
     fetchUserProfile()
