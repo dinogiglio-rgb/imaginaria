@@ -289,6 +289,7 @@ function TabUtenti({ session }) {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(null)
+  const [revoking, setRevoking] = useState(null)
 
   useEffect(() => {
     fetchUsers()
@@ -329,6 +330,30 @@ function TabUtenti({ session }) {
     }
   }
 
+  const revocaAccesso = async (u) => {
+    if (!confirm(`Revocare l'accesso a ${u.display_name || u.email}?`)) return
+    setRevoking(u.id)
+    try {
+      await supabase
+        .from('profiles')
+        .update({ beta_expires_at: '2020-01-01T00:00:00Z' })
+        .eq('id', u.id)
+
+      await supabase
+        .from('allowed_emails')
+        .delete()
+        .eq('email', u.email)
+
+      setUsers(prev => prev.map(x => x.id === u.id ? { ...x, beta_expires_at: '2020-01-01T00:00:00Z' } : x))
+      alert(`Accesso revocato per ${u.display_name || u.email}. ✓`)
+    } catch (err) {
+      console.error(err)
+      alert('Errore durante la revoca.')
+    } finally {
+      setRevoking(null)
+    }
+  }
+
   if (loading) return <LoadingSpinner />
 
   return (
@@ -359,13 +384,35 @@ function TabUtenti({ session }) {
           </div>
           <RoleBadge role={u.role || 'user'} />
           {u.id !== session.user.id && (
-            <button
-              onClick={() => cambiaRuolo(u.id, u.role === 'admin' ? 'user' : 'admin')}
-              disabled={updating === u.id}
-              style={btn(u.role === 'admin' ? BRAND.muted : BRAND.purple, true)}
-            >
-              {updating === u.id ? '...' : u.role === 'admin' ? 'Rendi User' : 'Rendi Admin'}
-            </button>
+            <>
+              <button
+                onClick={() => cambiaRuolo(u.id, u.role === 'admin' ? 'user' : 'admin')}
+                disabled={updating === u.id}
+                style={btn(u.role === 'admin' ? BRAND.muted : BRAND.purple, true)}
+              >
+                {updating === u.id ? '...' : u.role === 'admin' ? 'Rendi User' : 'Rendi Admin'}
+              </button>
+              {u.role !== 'admin' && (
+                <button
+                  onClick={() => revocaAccesso(u)}
+                  disabled={revoking === u.id}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '50px',
+                    border: 'none',
+                    background: '#F8D7DA',
+                    color: '#721C24',
+                    fontFamily: 'Inter, sans-serif',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: revoking === u.id ? 'not-allowed' : 'pointer',
+                    opacity: revoking === u.id ? 0.6 : 1,
+                  }}
+                >
+                  {revoking === u.id ? '...' : '🚫 Revoca accesso'}
+                </button>
+              )}
+            </>
           )}
         </div>
       ))}
