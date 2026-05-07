@@ -155,24 +155,37 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Immagine non trovata.' });
     }
 
-    const { data: existing } = await supabase
+    // Cerca TUTTI i record esistenti per (drawing_id, style)
+    const { data: existingRecords } = await supabase
       .from('renders')
-      .select('id')
+      .select('id, status')
       .eq('drawing_id', drawing_id)
-      .eq('style', style)
-      .single();
+      .eq('style', style);
+
+    const completedRecord = existingRecords?.find(r => r.status === 'completed');
+    const stalRecords = existingRecords?.filter(r => r.status !== 'completed') || [];
+
+    // Elimina record bloccati (processing/failed/pending da tentativi precedenti)
+    if (stalRecords.length > 0) {
+      const staleIds = stalRecords.map(r => r.id);
+      console.log(`🧹 Elimino ${staleIds.length} record bloccati per style=${style}:`, staleIds);
+      await supabase.from('renders').delete().in('id', staleIds);
+    }
 
     let render;
-    if (existing) {
+    if (completedRecord) {
+      // Esiste già un render completato: aggiorna status a processing per il nuovo tentativo
       const { data, error } = await supabase
         .from('renders')
-        .update({ status: 'processing' })
-        .eq('id', existing.id)
+        .update({ status: 'processing', completed_at: null })
+        .eq('id', completedRecord.id)
         .select()
         .single();
       if (error) throw error;
       render = data;
+      console.log(`♻️ Riutilizzo record completato id=${completedRecord.id} per style=${style}`);
     } else {
+      // Nessun record esistente: inserisci nuovo
       const { data, error } = await supabase
         .from('renders')
         .insert({
@@ -186,6 +199,7 @@ export default async function handler(req, res) {
         .single();
       if (error) throw error;
       render = data;
+      console.log(`➕ Nuovo record render id=${render.id} per style=${style}`);
     }
 
     const config = STYLE_CONFIG[style];
