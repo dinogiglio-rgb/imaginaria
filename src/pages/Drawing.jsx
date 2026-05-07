@@ -43,11 +43,24 @@ export default function Drawing({ user }) {
     fetchBetaQuotas()
   }, [id])
 
-  // Polling asincrono per la generazione 3D
+  // Polling asincrono per la generazione 3D (max 300s — TripoSR cold start ~104s)
   useEffect(() => {
     if (!request3DId) return
 
+    let pollCount = 0
+    const MAX_POLLS = 60 // 60 × 5s = 300s
+
     const interval = setInterval(async () => {
+      pollCount++
+
+      if (pollCount > MAX_POLLS) {
+        clearInterval(interval)
+        setRequest3DId(null)
+        setGenerando3D(false)
+        alert('Timeout generazione 3D: TripoSR sta impiegando troppo. Il modello potrebbe essere ancora in coda — riprova tra qualche minuto.')
+        return
+      }
+
       try {
         const { data: { session } } = await supabase.auth.getSession()
         const res = await fetch('/api/drawings/videostatus', {
@@ -59,6 +72,8 @@ export default function Drawing({ user }) {
           body: JSON.stringify({ type: '3d', request_id: request3DId, render_id: render3DId })
         })
         const data = await res.json()
+
+        console.log(`POLL RESPONSE 3D [${pollCount}/${MAX_POLLS}]:`, data)
 
         if (data.status === 'completed' && data.model_url) {
           clearInterval(interval)

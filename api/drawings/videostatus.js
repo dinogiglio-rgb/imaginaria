@@ -35,7 +35,7 @@ export default async function handler(req, res) {
       if (isCompleted) {
         const result = await fal.queue.result('fal-ai/triposr', { requestId: request_id })
 
-        console.log('3D RESULT COMPLETO:', JSON.stringify(result))
+        console.log('3D COMPLETATO - result completo:', JSON.stringify(result))
 
         const modelUrl =
           result?.data?.model_mesh?.url ||
@@ -55,7 +55,7 @@ export default async function handler(req, res) {
         }
 
         if (render_id) {
-          await supabase
+          const { error: updateError } = await supabase
             .from('renders')
             .update({
               status: 'completed',
@@ -63,6 +63,7 @@ export default async function handler(req, res) {
               completed_at: new Date().toISOString()
             })
             .eq('id', render_id)
+          console.log('3D DB UPDATE:', updateError ? updateError.message : 'OK', modelUrl)
         }
 
         return res.status(200).json({ status: 'completed', model_url: modelUrl })
