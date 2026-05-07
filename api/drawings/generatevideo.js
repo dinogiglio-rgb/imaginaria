@@ -1,4 +1,4 @@
-import * as fal from '@fal-ai/client'
+import { fal } from "@fal-ai/client"
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 

@@ -1,4 +1,4 @@
-import * as fal from '@fal-ai/client'
+import { fal } from "@fal-ai/client"
 import { createClient } from '@supabase/supabase-js'
 
 export default async function handler(req, res) {

@@ -1,4 +1,4 @@
-import * as fal from '@fal-ai/client';
+import { fal } from "@fal-ai/client";
 import { createClient } from '@supabase/supabase-js';
 
 if (!process.env.FAL_KEY) {
