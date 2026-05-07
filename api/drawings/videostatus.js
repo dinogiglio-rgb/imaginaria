@@ -1,12 +1,13 @@
 import { fal } from '@fal-ai/client'
 import { createClient } from '@supabase/supabase-js'
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
 
   const token = req.headers.authorization?.replace('Bearer ', '')
   if (!token) return res.status(401).json({ error: 'Non autorizzato' })
 
-  const { request_id, drawing_id, style } = req.body
+  const { request_id, drawing_id, style, type, render_id } = req.body
   if (!request_id) return res.status(400).json({ error: 'request_id mancante' })
 
   const supabase = createClient(
@@ -20,6 +21,45 @@ export default async function handler(req, res) {
 
     fal.config({ credentials: process.env.FAL_KEY })
 
+    if (type === '3d') {
+      const status = await fal.queue.status('fal-ai/triposr', { requestId: request_id })
+
+      if (status.status === 'COMPLETED') {
+        const result = await fal.queue.result('fal-ai/triposr', { requestId: request_id })
+        const modelUrl = result.data?.model_mesh?.url
+
+        if (!modelUrl) {
+          if (render_id) {
+            await supabase.from('renders').update({ status: 'failed' }).eq('id', render_id)
+          }
+          return res.status(200).json({ status: 'failed', error: 'Nessun modello 3D nel risultato' })
+        }
+
+        if (render_id) {
+          await supabase
+            .from('renders')
+            .update({
+              status: 'completed',
+              result_url: modelUrl,
+              completed_at: new Date().toISOString()
+            })
+            .eq('id', render_id)
+        }
+
+        return res.status(200).json({ status: 'completed', model_url: modelUrl })
+      }
+
+      if (status.status === 'FAILED') {
+        if (render_id) {
+          await supabase.from('renders').update({ status: 'failed' }).eq('id', render_id)
+        }
+        return res.status(200).json({ status: 'failed', error: 'Generazione 3D fallita su fal.ai' })
+      }
+
+      return res.status(200).json({ status: 'processing' })
+    }
+
+    // Comportamento originale per i video
     const status = await fal.queue.status(
       'fal-ai/kling-video/v1.6/standard/image-to-video',
       { requestId: request_id }
@@ -41,10 +81,7 @@ export default async function handler(req, res) {
           .eq('style', style)
       }
 
-      return res.status(200).json({
-        status: 'completed',
-        video_url: videoUrl
-      })
+      return res.status(200).json({ status: 'completed', video_url: videoUrl })
     }
 
     if (status.status === 'FAILED') {

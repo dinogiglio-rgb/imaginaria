@@ -30,6 +30,8 @@ export default function Drawing({ user }) {
   const [generando3D, setGenerando3D] = useState(false)
   const [modelUrl, setModelUrl] = useState(null)
   const [mostraViewer, setMostraViewer] = useState(false)
+  const [request3DId, setRequest3DId] = useState(null)
+  const [render3DId, setRender3DId] = useState(null)
   const [stileSceltoVideo, setStileSceltoVideo] = useState(null)
   const [shareStato, setShareStato] = useState(null) // null | 'loading' | 'copied' | 'error'
   const [userRole, setUserRole] = useState(null)
@@ -40,6 +42,44 @@ export default function Drawing({ user }) {
     fetchDrawing()
     fetchBetaQuotas()
   }, [id])
+
+  // Polling asincrono per la generazione 3D
+  useEffect(() => {
+    if (!request3DId) return
+
+    const interval = setInterval(async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const res = await fetch('/api/drawings/videostatus', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({ type: '3d', request_id: request3DId, render_id: render3DId })
+        })
+        const data = await res.json()
+
+        if (data.status === 'completed' && data.model_url) {
+          clearInterval(interval)
+          setRequest3DId(null)
+          setModelUrl(data.model_url)
+          setMostraViewer(true)
+          setGenerando3D(false)
+        } else if (data.status === 'failed') {
+          clearInterval(interval)
+          setRequest3DId(null)
+          setGenerando3D(false)
+          alert('Errore nella generazione 3D: ' + (data.error || 'Generazione fallita'))
+        }
+        // status === 'processing' → continua a pollare
+      } catch (err) {
+        console.error('Errore polling 3D:', err)
+      }
+    }, 5000)
+
+    return () => clearInterval(interval)
+  }, [request3DId, render3DId])
 
   const fetchBetaQuotas = async () => {
     if (!user?.id) return
@@ -242,17 +282,18 @@ export default function Drawing({ user }) {
   }
 
   const genera3D = async () => {
-    // Cerca il render completato più recente direttamente da Supabase
+    // Cerca il render completato più recente (escludi URL temporanei pending:...)
     const { data: renderRows } = await supabase
       .from('renders')
       .select('result_url')
       .eq('drawing_id', drawing.id)
+      .eq('status', 'completed')
       .not('result_url', 'is', null)
       .order('created_at', { ascending: false })
       .limit(1)
 
     const renderUrl = renderRows?.[0]?.result_url
-    if (!renderUrl) {
+    if (!renderUrl || renderUrl.startsWith('pending:')) {
       alert('Genera prima un render stilizzato!')
       return
     }
@@ -264,22 +305,24 @@ export default function Drawing({ user }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
+          Authorization: `Bearer ${session.access_token}`
         },
         body: JSON.stringify({ render_url: renderUrl, drawing_id: drawing.id })
       })
       const data = await res.json()
-      if (data.model_url) {
-        setModelUrl(data.model_url)
-        setMostraViewer(true)
+      if (data.requestId) {
+        // Job avviato — il polling useEffect si occupa di aspettare il risultato
+        setRequest3DId(data.requestId)
+        setRender3DId(data.renderId || null)
       } else {
         alert('Errore nella generazione 3D: ' + data.error)
+        setGenerando3D(false)
       }
     } catch (err) {
       alert('Errore: ' + err.message)
-    } finally {
       setGenerando3D(false)
     }
+    // Non c'è finally: generando3D rimane true finché il polling non completa
   }
 
   const condividi = async () => {
@@ -725,7 +768,7 @@ export default function Drawing({ user }) {
             }}
           >
             {generando3D
-              ? <><div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '3px solid rgba(255,255,255,0.3)', borderTopColor: 'white', animation: 'spin 0.8s linear infinite' }} /> Generazione 3D in corso (~60 sec)...</>
+              ? <><div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '3px solid rgba(255,255,255,0.3)', borderTopColor: 'white', animation: 'spin 0.8s linear infinite' }} /> Generazione 3D in corso... può richiedere qualche minuto ⏳</>
               : '🖨️ Trasforma in 3D'}
           </button>
         )}

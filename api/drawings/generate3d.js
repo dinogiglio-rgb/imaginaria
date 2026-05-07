@@ -21,20 +21,39 @@ export default async function handler(req, res) {
 
     fal.config({ credentials: process.env.FAL_KEY })
 
-    const result = await fal.subscribe('fal-ai/triposr', {
+    // Submit asincrono — ritorna subito il request_id senza aspettare il risultato
+    const { request_id } = await fal.queue.submit('fal-ai/triposr', {
       input: {
         image_url: render_url,
         do_remove_background: true,
         foreground_ratio: 0.85,
-      },
-      pollInterval: 3000,
-      timeout: 120000,
+      }
     })
 
-    const modelUrl = result.data.model_mesh.url
-    if (!modelUrl) throw new Error('Nessun modello 3D generato')
+    console.log('3D job inviato, request_id:', request_id)
 
-    return res.status(200).json({ model_url: modelUrl, drawing_id })
+    // Crea subito il record nel DB con status processing
+    // result_url usato temporaneamente per tracciare il request_id
+    const { data: renderRecord, error: dbError } = await supabase
+      .from('renders')
+      .insert({
+        drawing_id,
+        style: '3d',
+        type: '3d',
+        status: 'processing',
+        provider: 'fal_ai',
+        result_url: `pending:${request_id}`,
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single()
+
+    if (dbError) console.error('DB insert 3D error (non bloccante):', dbError)
+
+    return res.status(200).json({
+      requestId: request_id,
+      renderId: renderRecord?.id || null
+    })
 
   } catch (err) {
     console.error('ERRORE API:', err.message, err.stack)
