@@ -34,6 +34,7 @@ export default function Drawing({ user }) {
   const [render3DId, setRender3DId] = useState(null)
   const [poll3DTimeout, setPoll3DTimeout] = useState(false)
   const [poll3DKey, setPoll3DKey] = useState(0)
+  const [errore3DUrl, setErrore3DUrl] = useState(false)
   const [stileSceltoVideo, setStileSceltoVideo] = useState(null)
   const [shareStato, setShareStato] = useState(null) // null | 'loading' | 'copied' | 'error'
   const [userRole, setUserRole] = useState(null)
@@ -75,6 +76,8 @@ export default function Drawing({ user }) {
       }
 
       try {
+        if (!isMounted3DRef.current) { clearInterval(interval); return }
+
         const { data: { session } } = await supabase.auth.getSession()
         const res = await fetch('/api/drawings/videostatus', {
           method: 'POST',
@@ -363,6 +366,20 @@ export default function Drawing({ user }) {
     setGenerando3D(true)
     setPoll3DTimeout(false)
     setPoll3DKey(k => k + 1)
+  }
+
+  const reset3D = async () => {
+    await supabase.from('renders')
+      .delete()
+      .eq('drawing_id', drawing.id)
+      .eq('style', '3d')
+    setModelUrl(null)
+    setGenerando3D(false)
+    setPoll3DTimeout(false)
+    setErrore3DUrl(false)
+    setRequest3DId(null)
+    setRender3DId(null)
+    setMostraViewer(false)
   }
 
   const condividi = async () => {
@@ -795,7 +812,33 @@ export default function Drawing({ user }) {
 
         {/* Pulsante 3D */}
         {drawing?.ai_title && (
-          modelUrl ? (
+          (poll3DTimeout || errore3DUrl) ? (
+            <div style={{
+              marginTop: '12px', backgroundColor: 'white',
+              borderRadius: '20px', padding: '16px 20px',
+              border: '2px solid #f0ede8', textAlign: 'center'
+            }}>
+              <p style={{
+                fontFamily: 'Inter, sans-serif', fontSize: '0.9rem',
+                color: '#666', margin: '0 0 12px 0', lineHeight: 1.5
+              }}>
+                La generazione 3D sta impiegando troppo.<br />
+                Premi "Rigenera 3D" per riprovare.
+              </p>
+              <button
+                onClick={reset3D}
+                style={{
+                  padding: '12px 28px', borderRadius: '50px',
+                  background: 'linear-gradient(135deg, #A084E8, #FF7F6A)',
+                  color: 'white', fontFamily: 'Outfit, sans-serif',
+                  fontWeight: 700, fontSize: '0.95rem', border: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                🔄 Rigenera 3D
+              </button>
+            </div>
+          ) : modelUrl ? (
             <button
               onClick={() => setMostraViewer(true)}
               style={{
@@ -810,32 +853,6 @@ export default function Drawing({ user }) {
             >
               🎲 Vedi in 3D
             </button>
-          ) : poll3DTimeout ? (
-            <div style={{
-              marginTop: '12px', backgroundColor: 'white',
-              borderRadius: '20px', padding: '16px 20px',
-              border: '2px solid #f0ede8', textAlign: 'center'
-            }}>
-              <p style={{
-                fontFamily: 'Inter, sans-serif', fontSize: '0.9rem',
-                color: '#666', margin: '0 0 12px 0', lineHeight: 1.5
-              }}>
-                Il modello 3D è ancora in elaborazione su fal.ai.<br />
-                Riprova tra qualche minuto — non serve rigenerare! ⏳
-              </p>
-              <button
-                onClick={riprendiPolling3D}
-                style={{
-                  padding: '12px 28px', borderRadius: '50px',
-                  background: 'linear-gradient(135deg, #A084E8, #FF7F6A)',
-                  color: 'white', fontFamily: 'Outfit, sans-serif',
-                  fontWeight: 700, fontSize: '0.95rem', border: 'none',
-                  cursor: 'pointer'
-                }}
-              >
-                🔄 Controlla stato
-              </button>
-            </div>
           ) : (
             <button
               onClick={genera3D}
@@ -1254,6 +1271,7 @@ export default function Drawing({ user }) {
         <Viewer3D
           modelUrl={modelUrl}
           onClose={() => setMostraViewer(false)}
+          onError={() => { setMostraViewer(false); setErrore3DUrl(true) }}
         />
       )}
 

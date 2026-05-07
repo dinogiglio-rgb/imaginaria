@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 
-export default function Viewer3D({ modelUrl, onClose }) {
+export default function Viewer3D({ modelUrl, onClose, onError }) {
   const [erroreViewer, setErroreViewer] = useState(false)
   const modelViewerRef = useRef(null)
 
@@ -9,7 +9,10 @@ export default function Viewer3D({ modelUrl, onClose }) {
   useEffect(() => {
     const el = modelViewerRef.current
     if (!el) return
-    const handleError = () => setErroreViewer(true)
+    const handleError = () => {
+      setErroreViewer(true)
+      onError?.()
+    }
     el.addEventListener('error', handleError)
     return () => el.removeEventListener('error', handleError)
   }, [])

@@ -1,7 +1,7 @@
-const https = require('https')
-const http = require('http')
+import https from 'https'
+import http from 'http'
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).end()
 
   const { url, filename } = req.query
