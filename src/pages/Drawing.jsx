@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import RenderSection from '../components/RenderSection'
@@ -37,10 +37,16 @@ export default function Drawing({ user }) {
   const [userRole, setUserRole] = useState(null)
   const [rendersOggi, setRendersOggi] = useState(0)
   const [videoTotali, setVideoTotali] = useState(0)
+  const analyzeTimerRef = useRef(null)
+  const shareTimerRef = useRef(null)
 
   useEffect(() => {
     fetchDrawing()
     fetchBetaQuotas()
+    return () => {
+      clearTimeout(analyzeTimerRef.current)
+      clearTimeout(shareTimerRef.current)
+    }
   }, [id])
 
   // Polling asincrono per la generazione 3D (max 300s — TripoSR cold start ~104s)
@@ -72,8 +78,6 @@ export default function Drawing({ user }) {
           body: JSON.stringify({ type: '3d', request_id: request3DId, render_id: render3DId })
         })
         const data = await res.json()
-
-        console.log(`POLL RESPONSE 3D [${pollCount}/${MAX_POLLS}]:`, data)
 
         if (data.status === 'completed' && data.model_url) {
           clearInterval(interval)
@@ -154,7 +158,7 @@ export default function Drawing({ user }) {
       setStorieSalvate(storie || [])
 
       if (!data.ai_title && !data.ai_description) {
-        setTimeout(() => analyzeDrawing(data), 800)
+        analyzeTimerRef.current = setTimeout(() => analyzeDrawing(data), 800)
       }
     } catch (err) {
       console.error('Errore caricamento:', err)
@@ -356,11 +360,11 @@ export default function Drawing({ user }) {
       if (!res.ok) throw new Error(data.error)
       await navigator.clipboard.writeText(data.url)
       setShareStato('copied')
-      setTimeout(() => setShareStato(null), 3000)
+      shareTimerRef.current = setTimeout(() => setShareStato(null), 3000)
     } catch (err) {
       console.error('Errore condivisione:', err)
       setShareStato('error')
-      setTimeout(() => setShareStato(null), 3000)
+      shareTimerRef.current = setTimeout(() => setShareStato(null), 3000)
     }
   }
 
@@ -418,7 +422,7 @@ export default function Drawing({ user }) {
         padding: '14px 20px',
         display: 'flex', alignItems: 'center', gap: '12px'
       }}>
-        <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.4rem', padding: '4px' }}>
+        <button onClick={() => navigate(drawing?.child_id ? `/child/${drawing.child_id}` : '/')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.4rem', padding: '4px' }}>
           ←
         </button>
         <h1 style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 800, fontSize: '1.2rem', color: '#2D2D2D', margin: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

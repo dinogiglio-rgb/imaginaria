@@ -142,13 +142,11 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Nessun render completato trovato per questo stile.' });
       }
       imageUrl = existingRender.result_url;
-      console.log(`✏️ Modalità: MODIFICA RENDER [${style}]`);
     } else {
       imageUrl = toPublicUrl(
         drawing.processed_url || drawing.original_url,
         process.env.VITE_SUPABASE_URL
       );
-      console.log(`🎨 Modalità: ${isRefinement ? 'RIGENERA DAL DISEGNO' : 'GENERAZIONE'} [${style}]`);
     }
 
     if (!imageUrl) {
@@ -168,7 +166,6 @@ export default async function handler(req, res) {
     // Elimina record bloccati (processing/failed/pending da tentativi precedenti)
     if (stalRecords.length > 0) {
       const staleIds = stalRecords.map(r => r.id);
-      console.log(`🧹 Elimino ${staleIds.length} record bloccati per style=${style}:`, staleIds);
       await supabase.from('renders').delete().in('id', staleIds);
     }
 
@@ -183,7 +180,6 @@ export default async function handler(req, res) {
         .single();
       if (error) throw error;
       render = data;
-      console.log(`♻️ Riutilizzo record completato id=${completedRecord.id} per style=${style}`);
     } else {
       // Nessun record esistente: inserisci nuovo
       const { data, error } = await supabase
@@ -199,7 +195,6 @@ export default async function handler(req, res) {
         .single();
       if (error) throw error;
       render = data;
-      console.log(`➕ Nuovo record render id=${render.id} per style=${style}`);
     }
 
     const config = STYLE_CONFIG[style];
@@ -214,9 +209,6 @@ export default async function handler(req, res) {
       finalPrompt = `${config.prompt}${subject ? ` The character is: ${subject}.` : ''}`;
     }
 
-    console.log(`📝 Prompt: ${finalPrompt.substring(0, 150)}...`);
-    console.log(`🖼️ Base: ${imageUrl.substring(0, 70)}...`);
-
     const result = await fal.subscribe('fal-ai/flux-pro/kontext', {
       input: {
         prompt: finalPrompt,
@@ -229,12 +221,6 @@ export default async function handler(req, res) {
         num_images: 1,
         output_format: 'jpeg',
         seed: Math.floor(Math.random() * 9999999)
-      },
-      logs: true,
-      onQueueUpdate: (update) => {
-        if (update.status === 'IN_PROGRESS') {
-          update.logs?.map(l => l.message).forEach(m => console.log(`  ⏳ ${m}`));
-        }
       }
     });
 
@@ -246,8 +232,6 @@ export default async function handler(req, res) {
       console.error('Risposta fal.ai:', JSON.stringify(result).substring(0, 300));
       throw new Error('Nessuna immagine generata');
     }
-
-    console.log(`✅ Render completato`);
 
     const imageResponse = await fetch(generatedUrl);
     const imageBuffer = await imageResponse.arrayBuffer();

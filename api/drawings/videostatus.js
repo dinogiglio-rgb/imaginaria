@@ -22,20 +22,13 @@ export default async function handler(req, res) {
     fal.config({ credentials: process.env.FAL_KEY })
 
     if (type === '3d') {
-      console.log('3D STATUS CHECK - requestId:', request_id)
-
       const statusResult = await fal.queue.status('fal-ai/triposr', { requestId: request_id })
-
-      console.log('3D STATUS RESPONSE:', JSON.stringify(statusResult))
-      console.log('3D STATUS VALUE:', statusResult?.status)
 
       const isCompleted = ['completed', 'COMPLETED', 'OK'].includes(statusResult?.status)
       const isFailed = ['failed', 'FAILED', 'ERROR'].includes(statusResult?.status)
 
       if (isCompleted) {
         const result = await fal.queue.result('fal-ai/triposr', { requestId: request_id })
-
-        console.log('3D COMPLETATO - result completo:', JSON.stringify(result))
 
         const modelUrl =
           result?.data?.model_mesh?.url ||
@@ -44,8 +37,6 @@ export default async function handler(req, res) {
           result?.model?.url ||
           result?.data?.outputs?.[0]?.url ||
           result?.outputs?.[0]?.url
-
-        console.log('3D MODEL URL estratto:', modelUrl)
 
         if (!modelUrl) {
           if (render_id) {
@@ -63,7 +54,7 @@ export default async function handler(req, res) {
               completed_at: new Date().toISOString()
             })
             .eq('id', render_id)
-          console.log('3D DB UPDATE:', updateError ? updateError.message : 'OK', modelUrl)
+          if (updateError) console.error('3D DB update error:', updateError.message)
         }
 
         return res.status(200).json({ status: 'completed', model_url: modelUrl })

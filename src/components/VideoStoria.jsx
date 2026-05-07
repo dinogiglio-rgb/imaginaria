@@ -9,6 +9,14 @@ export default function VideoStoria({ renderUrl, storyText, drawingTitle, drawin
   const intervalRef = useRef(null)
   const contatoreRef = useRef(null)
 
+  // Cleanup su dismount — evita memory leak se l'utente naviga via durante il polling
+  useEffect(() => {
+    return () => {
+      if (contatoreRef.current) clearInterval(contatoreRef.current)
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
+  }, [])
+
   useEffect(() => {
     if (drawingId && style) {
       supabase
@@ -55,11 +63,24 @@ export default function VideoStoria({ renderUrl, storyText, drawingTitle, drawin
 
       setFase('attesa')
 
+      let pollCount = 0
+      const MAX_POLLS = 120 // 120 × 8s = 16 minuti
+
       contatoreRef.current = setInterval(() => {
         setSecondi(s => s + 1)
       }, 1000)
 
       intervalRef.current = setInterval(async () => {
+        pollCount++
+
+        if (pollCount > MAX_POLLS) {
+          clearInterval(intervalRef.current)
+          clearInterval(contatoreRef.current)
+          setErrore('Generazione non riuscita, riprova')
+          setFase('errore')
+          return
+        }
+
         try {
           const statusRes = await fetch('/api/drawings/videostatus', {
             method: 'POST',
