@@ -149,6 +149,11 @@ export default function Drawing({ user }) {
       if (error) throw error
       setDrawing(data)
 
+      const render3d = data?.renders?.find(r => r.style === '3d' && r.result_url)
+      if (render3d?.result_url) {
+        setModelUrl(render3d.result_url)
+      }
+
       // Carica storie salvate
       const { data: storie } = await supabase
         .from('stories')
@@ -770,26 +775,43 @@ export default function Drawing({ user }) {
 
         {/* Pulsante 3D */}
         {drawing?.ai_title && (
-          <button
-            onClick={genera3D}
-            disabled={generando3D}
-            style={{
-              width: '100%', padding: '16px', borderRadius: '50px',
-              background: generando3D
-                ? '#ccc'
-                : 'linear-gradient(135deg, #A084E8, #FF7F6A)',
-              color: 'white', fontFamily: 'Outfit, sans-serif',
-              fontWeight: 700, fontSize: '1rem', border: 'none',
-              cursor: generando3D ? 'not-allowed' : 'pointer',
-              marginTop: '12px',
-              display: 'flex', alignItems: 'center',
-              justifyContent: 'center', gap: '8px'
-            }}
-          >
-            {generando3D
-              ? <><div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '3px solid rgba(255,255,255,0.3)', borderTopColor: 'white', animation: 'spin 0.8s linear infinite' }} /> Generazione 3D in corso... può richiedere qualche minuto ⏳</>
-              : '🖨️ Trasforma in 3D'}
-          </button>
+          modelUrl ? (
+            <button
+              onClick={() => setMostraViewer(true)}
+              style={{
+                width: '100%', padding: '16px', borderRadius: '50px',
+                background: 'linear-gradient(135deg, #A084E8, #FF7F6A)',
+                color: 'white', fontFamily: 'Outfit, sans-serif',
+                fontWeight: 700, fontSize: '1rem', border: 'none',
+                cursor: 'pointer', marginTop: '12px',
+                display: 'flex', alignItems: 'center',
+                justifyContent: 'center', gap: '8px'
+              }}
+            >
+              🎲 Vedi in 3D
+            </button>
+          ) : (
+            <button
+              onClick={genera3D}
+              disabled={generando3D}
+              style={{
+                width: '100%', padding: '16px', borderRadius: '50px',
+                background: generando3D
+                  ? '#ccc'
+                  : 'linear-gradient(135deg, #A084E8, #FF7F6A)',
+                color: 'white', fontFamily: 'Outfit, sans-serif',
+                fontWeight: 700, fontSize: '1rem', border: 'none',
+                cursor: generando3D ? 'not-allowed' : 'pointer',
+                marginTop: '12px',
+                display: 'flex', alignItems: 'center',
+                justifyContent: 'center', gap: '8px'
+              }}
+            >
+              {generando3D
+                ? <><div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '3px solid rgba(255,255,255,0.3)', borderTopColor: 'white', animation: 'spin 0.8s linear infinite' }} /> Generazione 3D in corso... può richiedere qualche minuto ⏳</>
+                : '🖨️ Trasforma in 3D'}
+            </button>
+          )
         )}
 
         {errore && (

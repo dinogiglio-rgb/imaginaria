@@ -94,7 +94,6 @@ niente spiegazioni.`
     })
 
     const videoPrompt = promptResponse.content[0].text.trim()
-    console.log('Prompt video generato:', videoPrompt)
 
     fal.config({ credentials: process.env.FAL_KEY })
 
