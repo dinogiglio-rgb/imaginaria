@@ -1,4 +1,18 @@
+import { useState, useEffect, useRef } from 'react'
+
 export default function Viewer3D({ modelUrl, onClose }) {
+  const [erroreViewer, setErroreViewer] = useState(false)
+  const modelViewerRef = useRef(null)
+
+  // model-viewer è un Web Component: i suoi eventi non passano
+  // dal sistema sintetico di React — serve addEventListener diretto
+  useEffect(() => {
+    const el = modelViewerRef.current
+    if (!el) return
+    const handleError = () => setErroreViewer(true)
+    el.addEventListener('error', handleError)
+    return () => el.removeEventListener('error', handleError)
+  }, [])
 
   const downloadGlb = () => {
     const proxyUrl = `/api/drawings/download?url=${encodeURIComponent(modelUrl)}&filename=disegno-3d.glb`
@@ -33,16 +47,35 @@ export default function Viewer3D({ modelUrl, onClose }) {
         </h2>
 
         {/* Viewer 3D ruotabile */}
-        <model-viewer
-          src={modelUrl}
-          alt="Modello 3D del disegno"
-          auto-rotate
-          camera-controls
-          style={{
-            width: '100%', height: '300px',
-            borderRadius: '16px', backgroundColor: '#f0ede8'
-          }}
-        />
+        {erroreViewer ? (
+          <div style={{
+            width: '100%', height: '300px', borderRadius: '16px',
+            backgroundColor: '#f0ede8', display: 'flex',
+            flexDirection: 'column', alignItems: 'center',
+            justifyContent: 'center', padding: '20px', boxSizing: 'border-box'
+          }}>
+            <span style={{ fontSize: '2.5rem', marginBottom: '12px' }}>⚠️</span>
+            <p style={{
+              fontFamily: 'Inter, sans-serif', fontSize: '0.9rem',
+              color: '#666', textAlign: 'center', margin: 0, lineHeight: 1.5
+            }}>
+              Il modello 3D non è più disponibile.<br />
+              Rigeneralo con il bottone "Trasforma in 3D" 🔄
+            </p>
+          </div>
+        ) : (
+          <model-viewer
+            ref={modelViewerRef}
+            src={modelUrl}
+            alt="Modello 3D del disegno"
+            auto-rotate
+            camera-controls
+            style={{
+              width: '100%', height: '300px',
+              borderRadius: '16px', backgroundColor: '#f0ede8'
+            }}
+          />
+        )}
 
         <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
           <button

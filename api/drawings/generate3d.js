@@ -30,8 +30,6 @@ export default async function handler(req, res) {
       }
     })
 
-    console.log('3D job inviato, request_id:', request_id)
-
     // Crea subito il record nel DB con status processing
     // result_url usato temporaneamente per tracciare il request_id
     const { data: renderRecord, error: dbError } = await supabase

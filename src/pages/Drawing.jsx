@@ -41,6 +41,7 @@ export default function Drawing({ user }) {
   const [videoTotali, setVideoTotali] = useState(0)
   const analyzeTimerRef = useRef(null)
   const shareTimerRef = useRef(null)
+  const isMounted3DRef = useRef(true)
 
   useEffect(() => {
     fetchDrawing()
@@ -50,6 +51,10 @@ export default function Drawing({ user }) {
       clearTimeout(shareTimerRef.current)
     }
   }, [id])
+
+  useEffect(() => {
+    return () => { isMounted3DRef.current = false }
+  }, [])
 
   useEffect(() => {
     if (!request3DId) return
@@ -63,6 +68,7 @@ export default function Drawing({ user }) {
 
       if (pollCount > MAX_POLLS_3D) {
         clearInterval(interval)
+        if (!isMounted3DRef.current) return
         setGenerando3D(false)
         setPoll3DTimeout(true)
         return
@@ -79,6 +85,8 @@ export default function Drawing({ user }) {
           body: JSON.stringify({ type: '3d', request_id: request3DId, render_id: render3DId })
         })
         const data = await res.json()
+
+        if (!isMounted3DRef.current) { clearInterval(interval); return }
 
         if (data.status === 'completed' && data.model_url) {
           clearInterval(interval)

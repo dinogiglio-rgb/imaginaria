@@ -22,6 +22,8 @@ export default async function handler(req, res) {
     fal.config({ credentials: process.env.FAL_KEY })
 
     if (type === '3d') {
+      console.log('3D render_id ricevuto:', render_id)
+
       const statusResult = await fal.queue.status('fal-ai/triposr', { requestId: request_id })
 
       const isCompleted = ['completed', 'COMPLETED', 'OK'].includes(statusResult?.status)
@@ -47,20 +49,24 @@ export default async function handler(req, res) {
 
         // Copia il file .glb su Supabase Storage per URL permanente
         let permanentUrl = modelUrl
-        try {
-          const fileRes = await fetch(modelUrl)
-          const fileBuffer = await fileRes.arrayBuffer()
-          const storagePath = `renders/${render_id}/model.glb`
-          await supabase.storage.from('renders')
-            .upload(storagePath, Buffer.from(fileBuffer), {
-              contentType: 'model/gltf-binary',
-              upsert: true
-            })
-          const { data: urlData } = supabase.storage
-            .from('renders').getPublicUrl(storagePath)
-          if (urlData?.publicUrl) permanentUrl = urlData.publicUrl
-        } catch (uploadErr) {
-          console.error('Upload 3D storage fallito, uso URL fal.ai:', uploadErr.message)
+        if (!render_id) {
+          console.error('render_id mancante, impossibile salvare su Storage — uso URL fal.ai')
+        } else {
+          try {
+            const fileRes = await fetch(modelUrl)
+            const fileBuffer = await fileRes.arrayBuffer()
+            const storagePath = `renders/${render_id}/model.glb`
+            await supabase.storage.from('renders')
+              .upload(storagePath, Buffer.from(fileBuffer), {
+                contentType: 'model/gltf-binary',
+                upsert: true
+              })
+            const { data: urlData } = supabase.storage
+              .from('renders').getPublicUrl(storagePath)
+            if (urlData?.publicUrl) permanentUrl = urlData.publicUrl
+          } catch (uploadErr) {
+            console.error('Upload 3D storage fallito, uso URL fal.ai:', uploadErr.message)
+          }
         }
 
         if (render_id) {
