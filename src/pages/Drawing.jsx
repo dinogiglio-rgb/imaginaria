@@ -382,7 +382,7 @@ export default function Drawing({ user }) {
       }
       const { error } = await supabase.from('drawings').delete().eq('id', id)
       if (error) throw error
-      navigate('/')
+      navigate(drawing?.child_id ? `/child/${drawing.child_id}` : '/')
     } catch (err) {
       console.error('Errore eliminazione:', err)
       setErrore("Errore durante l'eliminazione. Riprova.")
