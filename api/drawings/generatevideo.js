@@ -1,4 +1,4 @@
-import { fal } from '@fal-ai/client'
+import * as fal from '@fal-ai/client'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 
@@ -26,29 +26,28 @@ async function checkBetaAccess(supabase, userId) {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).end()
-
-  const token = req.headers.authorization?.replace('Bearer ', '')
-  if (!token) return res.status(401).json({ error: 'Non autorizzato' })
-
-  const { render_url, story_text, drawing_title } = req.body
-  if (!render_url || !story_text) {
-    return res.status(400).json({ error: 'render_url e story_text obbligatori' })
-  }
-
-  const supabase = createClient(
-    process.env.VITE_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  )
-
   try {
+    if (req.method !== 'POST') return res.status(405).end()
+
+    const token = req.headers.authorization?.replace('Bearer ', '')
+    if (!token) return res.status(401).json({ error: 'Non autorizzato' })
+
+    const { render_url, story_text, drawing_title } = req.body
+    if (!render_url || !story_text) {
+      return res.status(400).json({ error: 'render_url e story_text obbligatori' })
+    }
+
+    const supabase = createClient(
+      process.env.VITE_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    )
+
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
     if (authError || !user) return res.status(401).json({ error: 'Token non valido' })
 
     const betaAccess = await checkBetaAccess(supabase, user.id)
     if (!betaAccess.allowed) return res.status(403).json({ error: betaAccess.reason })
 
-    // Controlla limite video totali (4 per utenti beta)
     const { data: userDrawings } = await supabase
       .from('drawings')
       .select('id')
@@ -71,7 +70,6 @@ export default async function handler(req, res) {
       }
     }
 
-    // STEP 1 — Claude genera un prompt video personalizzato dalla storia
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
     const promptResponse = await anthropic.messages.create({
@@ -98,7 +96,6 @@ niente spiegazioni.`
     const videoPrompt = promptResponse.content[0].text.trim()
     console.log('Prompt video generato:', videoPrompt)
 
-    // STEP 2 — Avvia job Kling con il prompt personalizzato
     fal.config({ credentials: process.env.FAL_KEY })
 
     const { request_id } = await fal.queue.submit(
@@ -116,14 +113,7 @@ niente spiegazioni.`
     return res.status(200).json({ request_id })
 
   } catch (err) {
-    console.error('ERRORE DETTAGLIATO:', {
-      message: err.message,
-      stack: err.stack,
-      cause: err.cause
-    })
-    return res.status(500).json({
-      error: err.message,
-      detail: err.stack?.split('\n')[0]
-    })
+    console.error('ERRORE API:', err.message, err.stack)
+    return res.status(500).json({ error: err.message })
   }
 }

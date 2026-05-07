@@ -2,19 +2,17 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Metodo non consentito' })
-
-  // Verifica autenticazione
-  const token = req.headers.authorization?.replace('Bearer ', '')
-  if (!token) return res.status(401).json({ error: 'Non autorizzato' })
-
-  const supabase = createClient(
-    process.env.VITE_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  )
-
   try {
-    // Verifica il JWT
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Metodo non consentito' })
+
+    const token = req.headers.authorization?.replace('Bearer ', '')
+    if (!token) return res.status(401).json({ error: 'Non autorizzato' })
+
+    const supabase = createClient(
+      process.env.VITE_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    )
+
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
     if (authError || !user) return res.status(401).json({ error: 'Token non valido' })
 
@@ -54,7 +52,6 @@ Analizza questo disegno e rispondi SOLO con un JSON valido in questo formato esa
 Non aggiungere nulla prima o dopo il JSON.`
     }
 
-    // Carica il disegno dal database
     const { data: drawing, error: dbError } = await supabase
       .from('drawings')
       .select('*')
@@ -64,11 +61,10 @@ Non aggiungere nulla prima o dopo il JSON.`
     if (dbError || !drawing) return res.status(404).json({ error: 'Disegno non trovato' })
     if (!drawing.original_url) return res.status(400).json({ error: 'Immagine non disponibile' })
 
-    // Chiama Claude Vision
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5',
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 1024,
       messages: [{
         role: 'user',
@@ -85,7 +81,6 @@ Non aggiungere nulla prima o dopo il JSON.`
       }]
     })
 
-    // Parsa la risposta JSON di Claude
     const testo = response.content[0].text
       .trim()
       .replace(/^```json\s*/i, '')
@@ -94,7 +89,6 @@ Non aggiungere nulla prima o dopo il JSON.`
       .trim()
     const risultato = JSON.parse(testo)
 
-    // Salva i risultati nel database
     await supabase
       .from('drawings')
       .update({
@@ -107,7 +101,7 @@ Non aggiungere nulla prima o dopo il JSON.`
     return res.status(200).json(risultato)
 
   } catch (err) {
-    console.error('Errore analisi Claude:', err)
-    return res.status(500).json({ error: 'Errore interno del server' })
+    console.error('ERRORE API:', err.message, err.stack)
+    return res.status(500).json({ error: err.message })
   }
 }

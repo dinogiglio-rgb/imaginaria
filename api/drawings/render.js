@@ -1,10 +1,11 @@
+import * as fal from '@fal-ai/client';
 import { createClient } from '@supabase/supabase-js';
-import { fal } from '@fal-ai/client';
-fal.config({ credentials: process.env.FAL_KEY });
 
 if (!process.env.FAL_KEY) {
   console.error('❌ FAL_KEY mancante nel file .env');
 }
+
+fal.config({ credentials: process.env.FAL_KEY });
 
 async function checkBetaAccess(supabase, userId) {
   const { data: profile } = await supabase
@@ -65,57 +66,53 @@ function toPublicUrl(url, supabaseUrl) {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Metodo non consentito' });
-  }
-
-  const token = req.headers.authorization?.replace('Bearer ', '');
-  if (!token) return res.status(401).json({ error: 'Non autorizzato' });
-
-  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-  if (authError || !user) return res.status(401).json({ error: 'Token non valido' });
-
-  const betaAccess = await checkBetaAccess(supabase, user.id);
-  if (!betaAccess.allowed) return res.status(403).json({ error: betaAccess.reason });
-
-  // Controlla limite render giornaliero (10/giorno per utenti beta)
-  const oggi = new Date();
-  oggi.setHours(0, 0, 0, 0);
-
-  const { data: userDrawings } = await supabase
-    .from('drawings')
-    .select('id')
-    .eq('author_id', user.id);
-
-  const drawingIds = (userDrawings || []).map(d => d.id);
-
-  if (drawingIds.length > 0) {
-    const { count: renderOggi } = await supabase
-      .from('renders')
-      .select('id', { count: 'exact', head: true })
-      .in('drawing_id', drawingIds)
-      .gte('created_at', oggi.toISOString());
-
-    if (renderOggi >= 10) {
-      return res.status(403).json({
-        error: 'Hai raggiunto il limite beta, ci vediamo al lancio! 🚀',
-        limitReached: 'renders'
-      });
-    }
-  }
-
-  // drawing_id, style — obbligatori sempre
-  // refinement_prompt — testo aggiuntivo opzionale
-  // refinement_base — 'render' (usa render esistente) | 'drawing' (riparte dal disegno)
-  const { drawing_id, style, refinement_prompt, refinement_base } = req.body;
-
-  if (!drawing_id || !style || !['cartoon', 'toy', 'realistic'].includes(style)) {
-    return res.status(400).json({ error: 'Parametri mancanti o non validi' });
-  }
-
-  const isRefinement = !!refinement_prompt;
-
   try {
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'Metodo non consentito' });
+    }
+
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) return res.status(401).json({ error: 'Non autorizzato' });
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: 'Token non valido' });
+
+    const betaAccess = await checkBetaAccess(supabase, user.id);
+    if (!betaAccess.allowed) return res.status(403).json({ error: betaAccess.reason });
+
+    const oggi = new Date();
+    oggi.setHours(0, 0, 0, 0);
+
+    const { data: userDrawings } = await supabase
+      .from('drawings')
+      .select('id')
+      .eq('author_id', user.id);
+
+    const drawingIds = (userDrawings || []).map(d => d.id);
+
+    if (drawingIds.length > 0) {
+      const { count: renderOggi } = await supabase
+        .from('renders')
+        .select('id', { count: 'exact', head: true })
+        .in('drawing_id', drawingIds)
+        .gte('created_at', oggi.toISOString());
+
+      if (renderOggi >= 10) {
+        return res.status(403).json({
+          error: 'Hai raggiunto il limite beta, ci vediamo al lancio! 🚀',
+          limitReached: 'renders'
+        });
+      }
+    }
+
+    const { drawing_id, style, refinement_prompt, refinement_base } = req.body;
+
+    if (!drawing_id || !style || !['cartoon', 'toy', 'realistic'].includes(style)) {
+      return res.status(400).json({ error: 'Parametri mancanti o non validi' });
+    }
+
+    const isRefinement = !!refinement_prompt;
+
     const { data: drawing, error: drawingError } = await supabase
       .from('drawings')
       .select('id, ai_title, ai_description, ai_prompt_render, processed_url, original_url')
@@ -262,9 +259,14 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, render_url: publicUrl, style });
 
   } catch (err) {
-    console.error('Errore render:', err.message || err);
+    console.error('ERRORE API:', err.message, err.stack);
+    const { drawing_id, style } = req.body || {};
     if (drawing_id && style) {
-      await supabase.from('renders').update({ status: 'failed' })
+      const supabaseFallback = createClient(
+        process.env.VITE_SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
+      await supabaseFallback.from('renders').update({ status: 'failed' })
         .eq('drawing_id', drawing_id).eq('style', style);
     }
     return res.status(500).json({ error: err.message || 'Errore durante la generazione.' });
