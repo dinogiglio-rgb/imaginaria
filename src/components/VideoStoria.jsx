@@ -8,10 +8,11 @@ export default function VideoStoria({ renderUrl, storyText, drawingTitle, drawin
   const [secondi, setSecondi] = useState(0)
   const intervalRef = useRef(null)
   const contatoreRef = useRef(null)
+  const isMountedRef = useRef(true)
 
-  // Cleanup su dismount — evita memory leak se l'utente naviga via durante il polling
   useEffect(() => {
     return () => {
+      isMountedRef.current = false
       if (contatoreRef.current) clearInterval(contatoreRef.current)
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
@@ -76,6 +77,7 @@ export default function VideoStoria({ renderUrl, storyText, drawingTitle, drawin
         if (pollCount > MAX_POLLS) {
           clearInterval(intervalRef.current)
           clearInterval(contatoreRef.current)
+          if (!isMountedRef.current) return
           setErrore('Generazione non riuscita, riprova')
           setFase('errore')
           return
@@ -91,6 +93,8 @@ export default function VideoStoria({ renderUrl, storyText, drawingTitle, drawin
             body: JSON.stringify({ request_id: data.request_id, drawing_id: drawingId, style })
           })
           const statusData = await statusRes.json()
+
+          if (!isMountedRef.current) return
 
           if (statusData.status === 'completed') {
             clearInterval(intervalRef.current)
@@ -108,6 +112,7 @@ export default function VideoStoria({ renderUrl, storyText, drawingTitle, drawin
         } catch (pollErr) {
           clearInterval(intervalRef.current)
           clearInterval(contatoreRef.current)
+          if (!isMountedRef.current) return
           setErrore(pollErr.message)
           setFase('errore')
         }

@@ -45,19 +45,37 @@ export default async function handler(req, res) {
           return res.status(200).json({ status: 'failed', error: 'Nessun modello 3D nel risultato' })
         }
 
+        // Copia il file .glb su Supabase Storage per URL permanente
+        let permanentUrl = modelUrl
+        try {
+          const fileRes = await fetch(modelUrl)
+          const fileBuffer = await fileRes.arrayBuffer()
+          const storagePath = `renders/${render_id}/model.glb`
+          await supabase.storage.from('renders')
+            .upload(storagePath, Buffer.from(fileBuffer), {
+              contentType: 'model/gltf-binary',
+              upsert: true
+            })
+          const { data: urlData } = supabase.storage
+            .from('renders').getPublicUrl(storagePath)
+          if (urlData?.publicUrl) permanentUrl = urlData.publicUrl
+        } catch (uploadErr) {
+          console.error('Upload 3D storage fallito, uso URL fal.ai:', uploadErr.message)
+        }
+
         if (render_id) {
           const { error: updateError } = await supabase
             .from('renders')
             .update({
               status: 'completed',
-              result_url: modelUrl,
+              result_url: permanentUrl,
               completed_at: new Date().toISOString()
             })
             .eq('id', render_id)
           if (updateError) console.error('3D DB update error:', updateError.message)
         }
 
-        return res.status(200).json({ status: 'completed', model_url: modelUrl })
+        return res.status(200).json({ status: 'completed', model_url: permanentUrl })
       }
 
       if (isFailed) {
@@ -85,11 +103,14 @@ export default async function handler(req, res) {
       const videoUrl = result.data.video.url
 
       if (drawing_id && style) {
-        await supabase
-          .from('renders')
-          .update({ video_url: videoUrl })
-          .eq('drawing_id', drawing_id)
-          .eq('style', style)
+        await supabase.from('renders').upsert({
+          drawing_id,
+          style,
+          type: 'image',
+          status: 'completed',
+          provider: 'fal_ai',
+          video_url: videoUrl
+        }, { onConflict: 'drawing_id,style' })
       }
 
       return res.status(200).json({ status: 'completed', video_url: videoUrl })

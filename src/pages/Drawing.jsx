@@ -396,6 +396,10 @@ export default function Drawing({ user }) {
   }
 
 
+  const stylePerVideo = stileSceltoVideo
+    || drawing?.renders?.find(r => r.status === 'completed')?.style
+    || 'cartoon'
+
   if (loading) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAF9F6' }}>
@@ -750,7 +754,7 @@ export default function Drawing({ user }) {
                           storyText={s.testo}
                           drawingTitle={drawing?.ai_title || drawing?.title}
                           drawingId={drawing?.id}
-                          style={stileSceltoVideo || drawing?.renders?.find(r => r.result_url)?.style}
+                          style={stylePerVideo}
                           userRole={userRole}
                           videoTotali={videoTotali}
                           onVideoCompleted={fetchBetaQuotas}
@@ -1135,7 +1139,7 @@ export default function Drawing({ user }) {
                   storyText={storia}
                   drawingTitle={drawing?.ai_title || drawing?.title}
                   drawingId={drawing?.id}
-                  style={stileSceltoVideo || drawing?.renders?.find(r => r.result_url)?.style}
+                  style={stylePerVideo}
                   userRole={userRole}
                   videoTotali={videoTotali}
                   onVideoCompleted={fetchBetaQuotas}
