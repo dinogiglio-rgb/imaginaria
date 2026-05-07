@@ -72,8 +72,10 @@ export default function Upload({ user }) {
     try {
       setLoading(true)
       setErrore(null)
+      console.log('STEP 1 - inizio salvataggio', { userId: user.id, childId, fotoType: foto.type, fotoSize: foto.size })
 
       // Verifica limiti beta
+      console.log('STEP 2 - verifica limiti beta...')
       const { data: profile } = await supabase
         .from('profiles')
         .select('role, beta_expires_at')
@@ -100,8 +102,10 @@ export default function Upload({ user }) {
           }
         }
       }
+      console.log('STEP 2 OK - accesso consentito')
 
       // 1. Crea il record disegno nel database
+      console.log('STEP 3 - inserimento record nel DB...')
       const categoriaFinale = categoriaCustom
         ? form.categoriaPersonalizzata
         : form.categoria
@@ -122,34 +126,54 @@ export default function Upload({ user }) {
         .select()
         .single()
 
-      if (dbError) throw dbError
+      if (dbError) {
+        console.error('STEP 3 ERROR - DB insert fallito:', dbError)
+        throw dbError
+      }
+      console.log('STEP 3 OK - drawing creato:', drawing.id)
 
       // 2. Carica la foto su Supabase Storage
-      const estensione = foto.name.split('.').pop() || 'jpg'
+      // foto è un Blob (dall'ImageCropper), i Blob non hanno .name
+      // — deriviamo l'estensione dal MIME type
+      const mimeToExt = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
+      const estensione = mimeToExt[foto.type] || foto.name?.split('.')?.pop() || 'jpg'
       const percorso = `${drawing.id}.${estensione}`
+      console.log('STEP 4 - upload su Storage...', { percorso, type: foto.type, size: foto.size })
 
       const { error: storageError } = await supabase.storage
         .from('originals')
-        .upload(percorso, foto, { contentType: foto.type })
+        .upload(percorso, foto, { contentType: foto.type || 'image/jpeg' })
 
-      if (storageError) throw storageError
+      if (storageError) {
+        console.error('STEP 4 ERROR - Storage upload fallito:', storageError)
+        throw storageError
+      }
+      console.log('STEP 4 OK - upload completato')
 
       // 3. Ottieni l'URL pubblico firmato e salvalo
-      const { data: urlData } = await supabase.storage
+      console.log('STEP 5 - generazione URL firmato...')
+      const { data: urlData, error: urlError } = await supabase.storage
         .from('originals')
         .createSignedUrl(percorso, 60 * 60 * 24 * 365)
+
+      if (urlError) {
+        console.error('STEP 5 ERROR - signed URL fallito:', urlError)
+        throw urlError
+      }
 
       await supabase
         .from('drawings')
         .update({ original_url: urlData.signedUrl })
         .eq('id', drawing.id)
+      console.log('STEP 5 OK - URL salvato nel DB')
 
       // 4. Vai alla pagina del disegno
+      console.log('STEP 6 - navigazione a /drawing/' + drawing.id)
       navigate(`/drawing/${drawing.id}`)
 
     } catch (err) {
-      console.error('Errore upload:', err)
-      setErrore('Errore durante il salvataggio. Riprova.')
+      console.error('ERRORE SALVATAGGIO:', err.message, err.stack)
+      setErrore(err.message || 'Errore durante il salvataggio. Riprova.')
       setLoading(false)
     }
   }
