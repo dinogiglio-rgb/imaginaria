@@ -32,6 +32,8 @@ export default function Drawing({ user }) {
   const [mostraViewer, setMostraViewer] = useState(false)
   const [request3DId, setRequest3DId] = useState(null)
   const [render3DId, setRender3DId] = useState(null)
+  const [poll3DTimeout, setPoll3DTimeout] = useState(false)
+  const [poll3DKey, setPoll3DKey] = useState(0)
   const [stileSceltoVideo, setStileSceltoVideo] = useState(null)
   const [shareStato, setShareStato] = useState(null) // null | 'loading' | 'copied' | 'error'
   const [userRole, setUserRole] = useState(null)
@@ -49,21 +51,20 @@ export default function Drawing({ user }) {
     }
   }, [id])
 
-  // Polling asincrono per la generazione 3D (max 300s — TripoSR cold start ~104s)
   useEffect(() => {
     if (!request3DId) return
 
+    setPoll3DTimeout(false)
     let pollCount = 0
-    const MAX_POLLS = 60 // 60 × 5s = 300s
+    const MAX_POLLS_3D = 60 // 60 × 5s = 5 minuti
 
     const interval = setInterval(async () => {
       pollCount++
 
-      if (pollCount > MAX_POLLS) {
+      if (pollCount > MAX_POLLS_3D) {
         clearInterval(interval)
-        setRequest3DId(null)
         setGenerando3D(false)
-        alert('Timeout generazione 3D: TripoSR sta impiegando troppo. Il modello potrebbe essere ancora in coda — riprova tra qualche minuto.')
+        setPoll3DTimeout(true)
         return
       }
 
@@ -85,6 +86,7 @@ export default function Drawing({ user }) {
           setModelUrl(data.model_url)
           setMostraViewer(true)
           setGenerando3D(false)
+          setPoll3DTimeout(false)
         } else if (data.status === 'failed') {
           clearInterval(interval)
           setRequest3DId(null)
@@ -98,7 +100,7 @@ export default function Drawing({ user }) {
     }, 5000)
 
     return () => clearInterval(interval)
-  }, [request3DId, render3DId])
+  }, [request3DId, render3DId, poll3DKey])
 
   const fetchBetaQuotas = async () => {
     if (!user?.id) return
@@ -347,6 +349,12 @@ export default function Drawing({ user }) {
       setGenerando3D(false)
     }
     // Non c'è finally: generando3D rimane true finché il polling non completa
+  }
+
+  const riprendiPolling3D = () => {
+    setGenerando3D(true)
+    setPoll3DTimeout(false)
+    setPoll3DKey(k => k + 1)
   }
 
   const condividi = async () => {
@@ -794,6 +802,32 @@ export default function Drawing({ user }) {
             >
               🎲 Vedi in 3D
             </button>
+          ) : poll3DTimeout ? (
+            <div style={{
+              marginTop: '12px', backgroundColor: 'white',
+              borderRadius: '20px', padding: '16px 20px',
+              border: '2px solid #f0ede8', textAlign: 'center'
+            }}>
+              <p style={{
+                fontFamily: 'Inter, sans-serif', fontSize: '0.9rem',
+                color: '#666', margin: '0 0 12px 0', lineHeight: 1.5
+              }}>
+                Il modello 3D è ancora in elaborazione su fal.ai.<br />
+                Riprova tra qualche minuto — non serve rigenerare! ⏳
+              </p>
+              <button
+                onClick={riprendiPolling3D}
+                style={{
+                  padding: '12px 28px', borderRadius: '50px',
+                  background: 'linear-gradient(135deg, #A084E8, #FF7F6A)',
+                  color: 'white', fontFamily: 'Outfit, sans-serif',
+                  fontWeight: 700, fontSize: '0.95rem', border: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                🔄 Controlla stato
+              </button>
+            </div>
           ) : (
             <button
               onClick={genera3D}
