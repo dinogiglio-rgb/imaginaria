@@ -63,6 +63,24 @@ export default function Upload({ user }) {
     }
   }
 
+  const comprimiImmagine = async (blob, maxWidth = 1200, qualita = 0.82) => {
+    return new Promise((resolve) => {
+      const img = new Image()
+      const url = URL.createObjectURL(blob)
+      img.onload = () => {
+        const ratio = Math.min(1, maxWidth / img.width)
+        const canvas = document.createElement('canvas')
+        canvas.width = img.width * ratio
+        canvas.height = img.height * ratio
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+        URL.revokeObjectURL(url)
+        canvas.toBlob(resolve, 'image/jpeg', qualita)
+      }
+      img.src = url
+    })
+  }
+
   const handleSalva = async () => {
     if (!foto) {
       setErrore('Aggiungi prima una foto del disegno!')
@@ -124,16 +142,16 @@ export default function Upload({ user }) {
 
       if (dbError) throw dbError
 
-      // 2. Carica la foto su Supabase Storage
-      // foto è un Blob (dall'ImageCropper), i Blob non hanno .name
-      // — deriviamo l'estensione dal MIME type
-      const mimeToExt = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
-      const estensione = mimeToExt[foto.type] || foto.name?.split('.')?.pop() || 'jpg'
-      const percorso = `${drawing.id}.${estensione}`
+      // 2. Comprimi e carica la foto su Supabase Storage
+      const fotoOriginale = foto
+      const fotoCompressa = await comprimiImmagine(fotoOriginale)
+      console.log(`Foto originale: ${(fotoOriginale.size/1024/1024).toFixed(1)}MB → compressa: ${(fotoCompressa.size/1024).toFixed(0)}KB`)
+
+      const percorso = `${drawing.id}.jpg`
 
       const { error: storageError } = await supabase.storage
         .from('originals')
-        .upload(percorso, foto, { contentType: foto.type || 'image/jpeg' })
+        .upload(percorso, fotoCompressa, { contentType: 'image/jpeg' })
 
       if (storageError) throw storageError
 
