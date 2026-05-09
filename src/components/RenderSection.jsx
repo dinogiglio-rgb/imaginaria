@@ -101,6 +101,22 @@ export default function RenderSection({ drawingId, hasAiPrompt, userRole, render
     }
   }
 
+  const salvaRender = async (url, style) => {
+    try {
+      const response = await fetch(
+        `/api/drawings/download?url=${encodeURIComponent(url)}`
+      )
+      const blob = await response.blob()
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = `imaginaria-${style}.jpg`
+      link.click()
+      URL.revokeObjectURL(link.href)
+    } catch (e) {
+      alert('Errore durante il salvataggio')
+    }
+  }
+
   const rendersCompletati = STILI.filter(s => renders[s.id]);
 
   return (
@@ -185,11 +201,26 @@ export default function RenderSection({ drawingId, hasAiPrompt, userRole, render
               ✏️ Modifica
             </button>
           </div>
-          <img
-            src={renders[activeRender]}
-            alt="Render magico"
-            className="w-full object-cover"
-          />
+          <div className="relative">
+            <img
+              src={renders[activeRender]}
+              alt="Render magico"
+              className="w-full object-cover"
+            />
+            <button
+              onClick={() => salvaRender(renders[activeRender], activeRender)}
+              style={{
+                position: 'absolute', bottom: '12px', right: '12px',
+                background: '#FF7F6A', color: 'white',
+                border: 'none', borderRadius: '50px',
+                padding: '6px 14px', fontFamily: 'Inter, sans-serif',
+                fontSize: '0.8rem', fontWeight: 600,
+                cursor: 'pointer', boxShadow: '0 2px 10px rgba(0,0,0,0.25)'
+              }}
+            >
+              💾 Salva
+            </button>
+          </div>
 
           {/* Pannello modifica */}
           {editingStyle === activeRender && (
@@ -275,11 +306,26 @@ export default function RenderSection({ drawingId, hasAiPrompt, userRole, render
                 className={`rounded-[12px] overflow-hidden cursor-pointer border-2 transition-colors
                   ${activeRender === stile.id ? 'border-[#FF7F6A]' : 'border-transparent'}`}
               >
-                <img
-                  src={renders[stile.id]}
-                  alt={stile.label}
-                  className="w-full aspect-square object-cover block"
-                />
+                <div className="relative">
+                  <img
+                    src={renders[stile.id]}
+                    alt={stile.label}
+                    className="w-full aspect-square object-cover block"
+                  />
+                  <button
+                    onClick={e => { e.stopPropagation(); salvaRender(renders[stile.id], stile.id) }}
+                    style={{
+                      position: 'absolute', bottom: '4px', right: '4px',
+                      background: '#FF7F6A', color: 'white',
+                      border: 'none', borderRadius: '50px',
+                      padding: '3px 8px', fontFamily: 'Inter, sans-serif',
+                      fontSize: '0.65rem', fontWeight: 600,
+                      cursor: 'pointer', boxShadow: '0 1px 6px rgba(0,0,0,0.25)'
+                    }}
+                  >
+                    💾
+                  </button>
+                </div>
                 <p className="text-center font-['Inter'] text-[10px] text-gray-400 py-1">
                   {stile.label}
                 </p>

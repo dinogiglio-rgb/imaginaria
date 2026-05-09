@@ -274,7 +274,7 @@ export default function VideoStoria({ renderUrl, storyText, drawingTitle, drawin
                 fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer'
               }}
             >
-              🔄
+              ▶ Guarda di nuovo
             </button>
           </div>
         </div>
