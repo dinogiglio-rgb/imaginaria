@@ -65,18 +65,45 @@ export default function Upload({ user }) {
 
   const comprimiImmagine = async (blob, maxWidth = 1200, qualita = 0.82) => {
     return new Promise((resolve) => {
+      const timeout = setTimeout(() => {
+        console.warn('Compressione timeout — uso immagine originale')
+        resolve(blob)
+      }, 8000)
+
       const img = new Image()
       const url = URL.createObjectURL(blob)
-      img.onload = () => {
-        const ratio = Math.min(1, maxWidth / img.width)
-        const canvas = document.createElement('canvas')
-        canvas.width = img.width * ratio
-        canvas.height = img.height * ratio
-        const ctx = canvas.getContext('2d')
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+
+      img.onerror = () => {
+        clearTimeout(timeout)
         URL.revokeObjectURL(url)
-        canvas.toBlob(resolve, 'image/jpeg', qualita)
+        resolve(blob)
       }
+
+      img.onload = () => {
+        try {
+          const ratio = Math.min(1, maxWidth / img.width)
+          const canvas = document.createElement('canvas')
+          canvas.width = Math.round(img.width * ratio)
+          canvas.height = Math.round(img.height * ratio)
+          const ctx = canvas.getContext('2d')
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+          URL.revokeObjectURL(url)
+
+          canvas.toBlob(
+            (result) => {
+              clearTimeout(timeout)
+              resolve(result || blob)
+            },
+            'image/jpeg',
+            qualita
+          )
+        } catch (e) {
+          clearTimeout(timeout)
+          URL.revokeObjectURL(url)
+          resolve(blob)
+        }
+      }
+
       img.src = url
     })
   }
@@ -149,9 +176,15 @@ export default function Upload({ user }) {
 
       const percorso = `${drawing.id}.jpg`
 
-      const { error: storageError } = await supabase.storage
+      const uploadPromise = supabase.storage
         .from('originals')
         .upload(percorso, fotoCompressa, { contentType: 'image/jpeg' })
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Upload timeout dopo 30s')), 30000)
+      )
+
+      const { error: storageError } = await Promise.race([uploadPromise, timeoutPromise])
 
       if (storageError) throw storageError
 
