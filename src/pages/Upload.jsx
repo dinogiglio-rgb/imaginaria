@@ -115,6 +115,7 @@ export default function Upload({ user }) {
     }
 
     try {
+      console.log('UPLOAD STEP 1 - inizio')
       setLoading(true)
       setErrore(null)
 
@@ -168,25 +169,47 @@ export default function Upload({ user }) {
         .single()
 
       if (dbError) throw dbError
+      console.log('UPLOAD STEP 2 - DB insert ok, id:', drawing?.id)
 
       // 2. Comprimi e carica la foto su Supabase Storage
       const fotoOriginale = foto
+      console.log('UPLOAD STEP 3 - inizio compressione, size originale:', (fotoOriginale.size/1024/1024).toFixed(1) + 'MB')
       const fotoCompressa = await comprimiImmagine(fotoOriginale)
-      console.log(`Foto originale: ${(fotoOriginale.size/1024/1024).toFixed(1)}MB → compressa: ${(fotoCompressa.size/1024).toFixed(0)}KB`)
+      console.log('UPLOAD STEP 4 - compressione ok, size:', fotoCompressa?.size, '(' + (fotoCompressa.size/1024).toFixed(0) + 'KB)')
 
       const percorso = `${drawing.id}.jpg`
 
-      const uploadPromise = supabase.storage
-        .from('originals')
-        .upload(percorso, fotoCompressa, { contentType: 'image/jpeg' })
+      console.log('UPLOAD STEP 5 - inizio upload storage')
 
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Upload timeout dopo 30s')), 30000)
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+      const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
+      const { data: { session } } = await supabase.auth.getSession()
+
+      const abortController = new AbortController()
+      const uploadTimeout = setTimeout(() => abortController.abort(), 20000)
+
+      const uploadRes = await fetch(
+        `${SUPABASE_URL}/storage/v1/object/originals/${drawing.id}.jpg`,
+        {
+          method: 'POST',
+          signal: abortController.signal,
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': SUPABASE_KEY,
+            'Content-Type': 'image/jpeg',
+            'x-upsert': 'true'
+          },
+          body: fotoCompressa
+        }
       )
+      clearTimeout(uploadTimeout)
 
-      const { error: storageError } = await Promise.race([uploadPromise, timeoutPromise])
+      if (!uploadRes.ok) {
+        const errBody = await uploadRes.text()
+        throw new Error(`Upload fallito (${uploadRes.status}): ${errBody}`)
+      }
 
-      if (storageError) throw storageError
+      console.log('UPLOAD STEP 6 - upload ok')
 
       // 3. Ottieni l'URL pubblico e salvalo
       const { data: urlData } = supabase.storage
@@ -198,6 +221,7 @@ export default function Upload({ user }) {
         .update({ original_url: urlData.publicUrl })
         .eq('id', drawing.id)
 
+      console.log('UPLOAD STEP 7 - URL salvato, navigo verso:', `/drawing/${drawing.id}`)
       // 4. Vai alla pagina del disegno
       navigate(`/drawing/${drawing.id}`)
 
