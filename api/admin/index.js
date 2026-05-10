@@ -22,7 +22,6 @@ export default async function handler(req, res) {
   const token = req.headers.authorization?.replace('Bearer ', '')
   if (!token) return res.status(401).json({ error: 'Non autorizzato' })
 
-  const supabase = supabase
   const user = await checkAdmin(supabase, token)
   if (!user) return res.status(403).json({ error: 'Accesso negato' })
 
