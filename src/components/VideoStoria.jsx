@@ -21,6 +21,12 @@ export default function VideoStoria({ renderUrl, storyText, drawingTitle, drawin
   }, [])
 
   useEffect(() => {
+    // Resetta lo stato ogni volta che cambia la storia o lo stile
+    setVideoUrl(null)
+    setFase('idle')
+    setErrore(null)
+    setSecondi(0)
+
     if (drawingId && style) {
       supabase
         .from('renders')
@@ -29,13 +35,14 @@ export default function VideoStoria({ renderUrl, storyText, drawingTitle, drawin
         .eq('style', style)
         .single()
         .then(({ data }) => {
+          if (!isMountedRef.current) return
           if (data?.video_url) {
             setVideoUrl(data.video_url)
             setFase('completato')
           }
         })
     }
-  }, [drawingId, style])
+  }, [drawingId, style, storyText])
 
   const avviaVideo = async () => {
     if (!renderUrl) {
@@ -153,7 +160,8 @@ export default function VideoStoria({ renderUrl, storyText, drawingTitle, drawin
     }
   }
 
-  const reset = () => {
+  const rigenera = () => {
+    if (videoUrl && !window.confirm('Vuoi generare un nuovo video? Quello attuale verrà sostituito.')) return
     clearInterval(intervalRef.current)
     clearInterval(contatoreRef.current)
     setFase('idle')
@@ -244,7 +252,7 @@ export default function VideoStoria({ renderUrl, storyText, drawingTitle, drawin
             ⚠️ {errore}
           </p>
           <button
-            onClick={reset}
+            onClick={rigenera}
             style={{
               padding: '10px 20px', borderRadius: '50px',
               border: '2px solid #FF7F6A', background: 'transparent',
@@ -285,7 +293,7 @@ export default function VideoStoria({ renderUrl, storyText, drawingTitle, drawin
               📥 Scarica video
             </button>
             <button
-              onClick={reset}
+              onClick={rigenera}
               style={{
                 padding: '12px 18px', borderRadius: '50px',
                 background: 'transparent', border: '2px solid #A084E8',
