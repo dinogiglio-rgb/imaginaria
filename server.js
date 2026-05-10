@@ -5,40 +5,37 @@ dotenv.config()
 
 const app = express()
 app.use(cors())
-app.use(express.json())
+app.use(express.json({ limit: '10mb' }))
+
+async function loadRoute(label, importPath, method, routePath) {
+  try {
+    const mod = await import(importPath)
+    app[method](routePath, (req, res) => mod.default(req, res))
+    console.log(`✅ Route ${routePath} caricata`)
+  } catch (e) {
+    console.error(`❌ Errore caricamento route ${routePath}:`, e.message)
+  }
+}
 
 async function loadRoutes() {
-  try {
-    const analyzeModule = await import('./api/drawings/analyze.js')
-    app.post('/api/drawings/analyze', (req, res) => analyzeModule.default(req, res))
-    console.log('✅ Route /api/drawings/analyze caricata')
-  } catch (e) {
-    console.error('❌ Errore caricamento route analyze:', e.message)
-  }
+  // --- Drawings ---
+  await loadRoute('analyze',       './api/drawings/analyze.js',      'post', '/api/drawings/analyze')
+  await loadRoute('render',        './api/drawings/render.js',        'post', '/api/drawings/render')
+  await loadRoute('story',         './api/drawings/story.js',         'post', '/api/drawings/story')
+  await loadRoute('generate3d',    './api/drawings/generate3d.js',    'post', '/api/drawings/generate3d')
+  await loadRoute('generatevideo', './api/drawings/generatevideo.js', 'post', '/api/drawings/generatevideo')
+  await loadRoute('videostatus',   './api/drawings/videostatus.js',   'post', '/api/drawings/videostatus')
+  await loadRoute('share',         './api/drawings/share.js',         'post', '/api/drawings/share')
+  await loadRoute('download',      './api/drawings/download.js',      'get',  '/api/drawings/download')
 
-  try {
-    const storyModule = await import('./api/drawings/story.js')
-    app.post('/api/drawings/story', (req, res) => storyModule.default(req, res))
-    console.log('✅ Route /api/drawings/story caricata')
-  } catch (e) {
-    console.log('ℹ️  Route story non ancora disponibile, skip')
-  }
+  // sharedata usa GET con query param ?token=
+  await loadRoute('sharedata',     './api/drawings/sharedata.js',     'get',  '/api/drawings/sharedata')
 
-  try {
-    const combineModule = await import('./api/stories/combine.js')
-    app.post('/api/stories/combine', (req, res) => combineModule.default(req, res))
-    console.log('✅ Route /api/stories/combine caricata')
-  } catch (e) {
-    console.log('ℹ️  Route combine non disponibile')
-  }
+  // --- Stories ---
+  await loadRoute('combine',       './api/stories/combine.js',        'post', '/api/stories/combine')
 
-  try {
-    const renderModule = await import('./api/drawings/render.js')
-    app.post('/api/drawings/render', (req, res) => renderModule.default(req, res))
-    console.log('✅ Route /api/drawings/render caricata')
-  } catch (e) {
-    console.error('❌ Errore caricamento route render:', e.message)
-  }
+  // --- Admin (handler unico con ?action= — serve tutti i metodi) ---
+  await loadRoute('admin',         './api/admin/index.js',            'all',  '/api/admin')
 }
 
 loadRoutes().then(() => {
