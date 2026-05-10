@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import ImageCropper from '../components/ImageCropper'
@@ -14,6 +14,8 @@ export default function Upload({ user }) {
   const childId = searchParams.get('childId')
   const fileInputRef = useRef(null)
   const cameraInputRef = useRef(null)
+  const anteprimaUrlRef = useRef(null)
+  const cropperUrlRef = useRef(null)
 
   const [foto, setFoto] = useState(null)
   const [anteprima, setAnteprima] = useState(null)
@@ -53,19 +55,29 @@ export default function Upload({ user }) {
     }
 
     setErrore(null)
+    // Revoca eventuale URL cropper precedente prima di crearne uno nuovo
+    if (cropperUrlRef.current) URL.revokeObjectURL(cropperUrlRef.current)
     const url = URL.createObjectURL(file)
+    cropperUrlRef.current = url
     setImmagineDaCroppare(url)
     setMostraCropper(true)
   }
 
   const handleCropConferma = (blob) => {
+    // Revoca URL cropper ora che non serve più
+    if (cropperUrlRef.current) { URL.revokeObjectURL(cropperUrlRef.current); cropperUrlRef.current = null }
+    // Revoca eventuale anteprima precedente
+    if (anteprimaUrlRef.current) URL.revokeObjectURL(anteprimaUrlRef.current)
+    const url = URL.createObjectURL(blob)
+    anteprimaUrlRef.current = url
     setFoto(blob)
-    setAnteprima(URL.createObjectURL(blob))
+    setAnteprima(url)
     setMostraCropper(false)
     setImmagineDaCroppare(null)
   }
 
   const handleCropAnnulla = () => {
+    if (cropperUrlRef.current) { URL.revokeObjectURL(cropperUrlRef.current); cropperUrlRef.current = null }
     setMostraCropper(false)
     setImmagineDaCroppare(null)
   }
@@ -84,6 +96,7 @@ export default function Upload({ user }) {
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
         console.warn('Compressione timeout — uso immagine originale')
+        URL.revokeObjectURL(url)  // evita leak se il timeout scatta prima di onload
         resolve(blob)
       }, 8000)
 
@@ -358,7 +371,7 @@ export default function Upload({ user }) {
               }}
             />
             <button
-              onClick={() => { setFoto(null); setAnteprima(null) }}
+              onClick={() => { if (anteprimaUrlRef.current) { URL.revokeObjectURL(anteprimaUrlRef.current); anteprimaUrlRef.current = null } setFoto(null); setAnteprima(null) }}
               style={{
                 position: 'absolute', top: '12px', right: '12px',
                 background: 'rgba(0,0,0,0.5)', border: 'none',
