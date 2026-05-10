@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
-export default function Account() {
+export default function Account({ user }) {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState(null)
@@ -16,23 +16,20 @@ export default function Account() {
   useEffect(() => { loadData() }, [])
 
   const loadData = async () => {
+    if (!user?.id) return
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const userId = session?.user?.id
-      if (!userId) return
-
       const { data: profileData } = await supabase
         .from('profiles')
         .select('display_name, email, role')
-        .eq('id', userId)
+        .eq('id', user.id)
         .single()
 
-      setProfile({ ...profileData, id: userId, email: profileData?.email || session.user.email })
+      setProfile({ ...profileData, id: user.id, email: profileData?.email || user.email })
 
       const { data: memberData } = await supabase
         .from('family_members')
         .select('family_id, role, families(name, owner_id)')
-        .eq('user_id', userId)
+        .eq('user_id', user.id)
         .maybeSingle()
 
       if (!memberData) { setLoading(false); return }

@@ -130,7 +130,7 @@ function AppContent() {
     // Timeout di sicurezza — se tutto si blocca, esci dallo spinner dopo 6s
     const safetyTimer = setTimeout(() => {
       if (mounted) setLoading(false)
-    }, 6000)
+    }, 15000)
 
     // onAuthStateChange è l'UNICA fonte di verità per lo stato auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -190,7 +190,7 @@ function AppContent() {
       <Route path="/book" element={<Book user={user} />} />
       <Route path="/admin" element={<Admin user={user} />} />
       <Route path="/child/:id" element={<ChildGallery user={user} />} />
-      <Route path="/account" element={<Account />} />
+      <Route path="/account" element={<Account user={user} />} />
       <Route path="/share/:token" element={<Share />} />
       <Route path="/invite/:token" element={<AcceptInvite />} />
     </Routes>
