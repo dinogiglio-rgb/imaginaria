@@ -1,14 +1,9 @@
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabase.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Metodo non consentito' })
   const { token } = req.query
   if (!token) return res.status(400).json({ error: 'token richiesto' })
-
-  const supabase = createClient(
-    process.env.VITE_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  )
 
   try {
     const { data: tokenRows } = await supabase

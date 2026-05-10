@@ -1,5 +1,5 @@
 import { fal } from "@fal-ai/client";
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase.js';
 import { checkBetaAccess } from '../lib/betaAccess.js';
 
 if (!process.env.FAL_KEY) {
@@ -9,10 +9,6 @@ if (!process.env.FAL_KEY) {
 fal.config({ credentials: process.env.FAL_KEY });
 
 
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
 
 const STYLE_CONFIG = {
   cartoon: {
@@ -247,11 +243,7 @@ export default async function handler(req, res) {
     console.error('ERRORE API:', err.message, err.stack);
     const { drawing_id, style } = req.body || {};
     if (drawing_id && style) {
-      const supabaseFallback = createClient(
-        process.env.VITE_SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY
-      );
-      await supabaseFallback.from('renders').update({ status: 'failed' })
+      await supabase.from('renders').update({ status: 'failed' })
         .eq('drawing_id', drawing_id).eq('style', style);
     }
     return res.status(500).json({ error: err.message || 'Errore durante la generazione.' });

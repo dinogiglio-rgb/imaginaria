@@ -1,5 +1,5 @@
 import { fal } from '@fal-ai/client'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabase.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
@@ -9,11 +9,6 @@ export default async function handler(req, res) {
 
   const { request_id, drawing_id, style, type, render_id } = req.body
   if (!request_id) return res.status(400).json({ error: 'request_id mancante' })
-
-  const supabase = createClient(
-    process.env.VITE_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  )
 
   try {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)

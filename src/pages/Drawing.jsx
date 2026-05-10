@@ -416,19 +416,30 @@ export default function Drawing({ user }) {
 
   const handleElimina = async () => {
     try {
-      const estensioni = ['jpg', 'jpeg', 'png', 'webp']
-      for (const ext of estensioni) {
-        await supabase.storage.from('originals').remove([`${id}.${ext}`])
-        await supabase.storage.from('processed').remove([`${id}.${ext}`])
-      }
-      if (drawing?.renders?.length > 0) {
-        for (const render of drawing.renders) {
-          await supabase.storage.from('renders').remove([`${id}/${render.style}.jpg`])
-        }
-      }
+      // 1. Elimina prima il record DB — operazione critica.
+      //    Se fallisce qui, lo storage non viene toccato e il disegno resta integro.
       const { error } = await supabase.from('drawings').delete().eq('id', id)
       if (error) throw error
+
+      // 2. Naviga subito — l'utente non deve aspettare la pulizia storage
       navigate(drawing?.child_id ? `/child/${drawing.child_id}` : '/')
+
+      // 3. Pulizia storage in background (fire-and-forget).
+      //    Eventuali errori qui lasciano solo file orfani inoffensivi,
+      //    mai un record DB senza immagini.
+      const estensioni = ['jpg', 'jpeg', 'png', 'webp']
+      const storageOps = [
+        ...estensioni.map(ext => supabase.storage.from('originals').remove([`${id}.${ext}`])),
+        ...estensioni.map(ext => supabase.storage.from('processed').remove([`${id}.${ext}`])),
+        ...(drawing?.renders || []).map(render =>
+          supabase.storage.from('renders').remove([`${id}/${render.style}.jpg`])
+        ),
+      ]
+      Promise.allSettled(storageOps).then(results => {
+        const failed = results.filter(r => r.status === 'rejected')
+        if (failed.length > 0) console.warn('Storage cleanup parziale:', failed.length, 'operazioni fallite')
+      })
+
     } catch (err) {
       console.error('Errore eliminazione:', err)
       setErrore("Errore durante l'eliminazione. Riprova.")

@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabase.js'
 
 export default async function handler(req, res) {
   try {
@@ -7,11 +7,6 @@ export default async function handler(req, res) {
 
     const token = req.headers.authorization?.replace('Bearer ', '')
     if (!token) return res.status(401).json({ error: 'Non autorizzato' })
-
-    const supabase = createClient(
-      process.env.VITE_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    )
 
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
     if (authError || !user) return res.status(401).json({ error: 'Token non valido' })
