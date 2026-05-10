@@ -36,6 +36,23 @@ export default function Upload({ user }) {
   const handleFoto = (e) => {
     const file = e.target.files[0]
     if (!file) return
+
+    // Validazione tipo
+    if (!file.type.startsWith('image/')) {
+      setErrore("Il file selezionato non è un'immagine. Scegli un JPG, PNG o HEIC.")
+      e.target.value = ''
+      return
+    }
+
+    // Validazione dimensione (max 20MB)
+    const MAX_MB = 20
+    if (file.size > MAX_MB * 1024 * 1024) {
+      setErrore(`Il file è troppo grande (${(file.size / 1024 / 1024).toFixed(1)} MB). Massimo ${MAX_MB} MB.`)
+      e.target.value = ''
+      return
+    }
+
+    setErrore(null)
     const url = URL.createObjectURL(file)
     setImmagineDaCroppare(url)
     setMostraCropper(true)
