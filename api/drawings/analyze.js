@@ -81,13 +81,34 @@ Non aggiungere nulla prima o dopo il JSON.`
       }]
     })
 
-    const testo = response.content[0].text
-      .trim()
-      .replace(/^```json\s*/i, '')
-      .replace(/^```\s*/i, '')
-      .replace(/```\s*$/i, '')
-      .trim()
-    const risultato = JSON.parse(testo)
+    const rawText = response.content[0].text.trim()
+
+    // Estrae il primo blocco JSON valido dalla risposta, tollerando
+    // backtick, testo prima/dopo, e commenti accidentali del modello
+    function estraiJSON(testo) {
+      // 1. Prova prima a trovare un blocco ```json ... ```
+      const blocco = testo.match(/```(?:json)?\s*([\s\S]*?)```/i)
+      if (blocco) {
+        try { return JSON.parse(blocco[1].trim()) } catch (_) {}
+      }
+      // 2. Prova a trovare il primo { ... } che sia JSON valido
+      const inizio = testo.indexOf('{')
+      const fine = testo.lastIndexOf('}')
+      if (inizio !== -1 && fine !== -1 && fine > inizio) {
+        try { return JSON.parse(testo.slice(inizio, fine + 1)) } catch (_) {}
+      }
+      // 3. Nessun JSON trovato
+      return null
+    }
+
+    const risultato = estraiJSON(rawText)
+
+    if (!risultato || !risultato.ai_title || !risultato.ai_description) {
+      console.error('Risposta Claude non parsabile:', rawText.substring(0, 300))
+      return res.status(502).json({
+        error: 'Il modello AI ha restituito una risposta non valida. Riprova.'
+      })
+    }
 
     await supabase
       .from('drawings')
