@@ -209,7 +209,9 @@ export default async function handler(req, res) {
       finalPrompt = `${config.prompt}${subject ? ` The character is: ${subject}.` : ''}`;
     }
 
-    const result = await fal.subscribe('fal-ai/flux-pro/kontext', {
+    const FAL_TIMEOUT_MS = 90_000 // 90 secondi
+
+    const falPromise = fal.subscribe('fal-ai/flux-pro/kontext', {
       input: {
         prompt: finalPrompt,
         image_url: imageUrl,
@@ -222,7 +224,13 @@ export default async function handler(req, res) {
         output_format: 'jpeg',
         seed: Math.floor(Math.random() * 9999999)
       }
-    });
+    })
+
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Timeout: fal.ai non ha risposto in 90 secondi')), FAL_TIMEOUT_MS)
+    )
+
+    const result = await Promise.race([falPromise, timeoutPromise])
 
     const generatedUrl = result?.images?.[0]?.url
       || result?.data?.images?.[0]?.url

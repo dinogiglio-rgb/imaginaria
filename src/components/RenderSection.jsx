@@ -59,6 +59,10 @@ export default function RenderSection({ drawingId, hasAiPrompt, userRole, render
     setLoading(prev => ({ ...prev, [style]: true }));
     if (isRefinement) setEditingStyle(null);
 
+    // Timeout client: se il backend non risponde in 100s, sblocca l'UI
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 100_000);
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
@@ -71,6 +75,7 @@ export default function RenderSection({ drawingId, hasAiPrompt, userRole, render
 
       const res = await fetch('/api/drawings/render', {
         method: 'POST',
+        signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -95,8 +100,13 @@ export default function RenderSection({ drawingId, hasAiPrompt, userRole, render
         alert(data.error || 'Errore nella generazione. Riprova!');
       }
     } catch (err) {
-      alert('Connessione interrotta. Riprova!');
+      if (err.name === 'AbortError') {
+        alert('Generazione troppo lenta. fal.ai non ha risposto in tempo — riprova tra qualche istante.');
+      } else {
+        alert('Connessione interrotta. Riprova!');
+      }
     } finally {
+      clearTimeout(timeoutId);
       setLoading(prev => ({ ...prev, [style]: false }));
     }
   }
