@@ -430,7 +430,7 @@ export default function Drawing({ user }) {
 
 
   const stylePerVideo = stileSceltoVideo
-    || drawing?.renders?.find(r => r.status === 'completed')?.style
+    || drawing?.renders?.find(r => r.status === 'completed' && r.style !== '3d')?.style
     || 'cartoon'
 
   if (loading) {

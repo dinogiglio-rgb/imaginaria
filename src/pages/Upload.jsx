@@ -188,16 +188,14 @@ export default function Upload({ user }) {
 
       if (storageError) throw storageError
 
-      // 3. Ottieni l'URL pubblico firmato e salvalo
-      const { data: urlData, error: urlError } = await supabase.storage
+      // 3. Ottieni l'URL pubblico e salvalo
+      const { data: urlData } = supabase.storage
         .from('originals')
-        .createSignedUrl(percorso, 60 * 60 * 24 * 365)
-
-      if (urlError) throw urlError
+        .getPublicUrl(percorso)
 
       await supabase
         .from('drawings')
-        .update({ original_url: urlData.signedUrl })
+        .update({ original_url: urlData.publicUrl })
         .eq('id', drawing.id)
 
       // 4. Vai alla pagina del disegno

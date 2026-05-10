@@ -9,10 +9,12 @@ export default function VideoStoria({ renderUrl, storyText, drawingTitle, drawin
   const intervalRef = useRef(null)
   const contatoreRef = useRef(null)
   const isMountedRef = useRef(true)
+  const abortRef = useRef(null)
 
   useEffect(() => {
     return () => {
       isMountedRef.current = false
+      if (abortRef.current) abortRef.current.abort()
       if (contatoreRef.current) clearInterval(contatoreRef.current)
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
@@ -84,11 +86,16 @@ export default function VideoStoria({ renderUrl, storyText, drawingTitle, drawin
         }
 
         try {
+          abortRef.current = new AbortController()
+          const { data: { session: sess } } = await supabase.auth.getSession()
+          const token = sess?.access_token
+
           const statusRes = await fetch('/api/drawings/videostatus', {
             method: 'POST',
+            signal: abortRef.current.signal,
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session.access_token}`
+              'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({ request_id: data.request_id, drawing_id: drawingId, style })
           })
@@ -110,6 +117,7 @@ export default function VideoStoria({ renderUrl, storyText, drawingTitle, drawin
           }
           // 'processing' → continua polling
         } catch (pollErr) {
+          if (pollErr.name === 'AbortError') return
           clearInterval(intervalRef.current)
           clearInterval(contatoreRef.current)
           if (!isMountedRef.current) return
