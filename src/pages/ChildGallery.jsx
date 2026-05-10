@@ -88,11 +88,15 @@ export default function ChildGallery({ user }) {
         await supabase.storage.from('originals').remove([`${drawingId}.${ext}`])
         await supabase.storage.from('processed').remove([`${drawingId}.${ext}`])
       }
-      await supabase.storage.from('renders').remove([
-        `${drawingId}/cartoon.jpg`,
-        `${drawingId}/toy.jpg`,
-        `${drawingId}/realistic.jpg`
-      ])
+      // Rimuovi render immagine e 3D da Storage
+      const drawing = drawings.find(d => d.id === drawingId)
+      const storageFiles = ['cartoon.jpg', 'toy.jpg', 'realistic.jpg'].map(f => `${drawingId}/${f}`)
+      if (drawing?.renders) {
+        for (const r of drawing.renders) {
+          if (r.style === '3d' && r.id) storageFiles.push(`renders/${r.id}/model.glb`)
+        }
+      }
+      await supabase.storage.from('renders').remove(storageFiles)
       const { error } = await supabase.from('drawings').delete().eq('id', drawingId)
       if (error) throw error
       setDrawings(prev => prev.filter(d => d.id !== drawingId))

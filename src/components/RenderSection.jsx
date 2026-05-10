@@ -103,8 +103,10 @@ export default function RenderSection({ drawingId, hasAiPrompt, userRole, render
 
   const salvaRender = async (url, style) => {
     try {
+      const { data: { session } } = await supabase.auth.getSession()
       const response = await fetch(
-        `/api/drawings/download?url=${encodeURIComponent(url)}`
+        `/api/drawings/download?url=${encodeURIComponent(url)}`,
+        { headers: { Authorization: `Bearer ${session.access_token}` } }
       )
       const blob = await response.blob()
       const link = document.createElement('a')

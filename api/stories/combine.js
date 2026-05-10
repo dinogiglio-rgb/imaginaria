@@ -36,12 +36,6 @@ Il protagonista della storia è sempre ${bambino.name}.
 `
 }
 
-console.log('ENV CHECK:', {
-  hasAnthropicKey: !!process.env.ANTHROPIC_API_KEY,
-  hasFalKey: !!process.env.FAL_KEY,
-  hasSupabase: !!process.env.SUPABASE_SERVICE_ROLE_KEY
-})
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Metodo non consentito' })
 

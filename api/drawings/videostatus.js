@@ -22,9 +22,7 @@ export default async function handler(req, res) {
     fal.config({ credentials: process.env.FAL_KEY })
 
     if (type === '3d') {
-      console.log('3D render_id ricevuto:', render_id)
-
-      const statusResult = await fal.queue.status('fal-ai/triposr', { requestId: request_id })
+const statusResult = await fal.queue.status('fal-ai/triposr', { requestId: request_id })
 
       const isCompleted = ['completed', 'COMPLETED', 'OK'].includes(statusResult?.status)
       const isFailed = ['failed', 'FAILED', 'ERROR'].includes(statusResult?.status)

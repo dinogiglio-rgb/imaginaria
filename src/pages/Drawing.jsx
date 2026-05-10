@@ -102,7 +102,7 @@ export default function Drawing({ user }) {
           clearInterval(interval)
           setRequest3DId(null)
           setGenerando3D(false)
-          alert('Errore nella generazione 3D: ' + (data.error || 'Generazione fallita'))
+          setPoll3DTimeout(true)
         }
         // status === 'processing' → continua a pollare
       } catch (err) {

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { supabase } from '../lib/supabase'
 
 export default function Viewer3D({ modelUrl, onClose, onError }) {
   const [erroreViewer, setErroreViewer] = useState(false)
@@ -17,12 +18,22 @@ export default function Viewer3D({ modelUrl, onClose, onError }) {
     return () => el.removeEventListener('error', handleError)
   }, [])
 
-  const downloadGlb = () => {
-    const proxyUrl = `/api/drawings/download?url=${encodeURIComponent(modelUrl)}&filename=disegno-3d.glb`
-    const link = document.createElement('a')
-    link.href = proxyUrl
-    link.download = 'disegno-3d.glb'
-    link.click()
+  const downloadGlb = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const response = await fetch(
+        `/api/drawings/download?url=${encodeURIComponent(modelUrl)}&filename=disegno-3d.glb`,
+        { headers: { Authorization: `Bearer ${session.access_token}` } }
+      )
+      const blob = await response.blob()
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = 'disegno-3d.glb'
+      link.click()
+      URL.revokeObjectURL(link.href)
+    } catch (e) {
+      alert('Errore durante il download')
+    }
   }
 
   return (

@@ -134,12 +134,23 @@ export default function VideoStoria({ renderUrl, storyText, drawingTitle, drawin
     }
   }
 
-  const scaricaVideo = () => {
-    const proxyUrl = `/api/drawings/download?url=${encodeURIComponent(videoUrl)}&filename=${encodeURIComponent((drawingTitle || 'storia') + '.mp4')}`
-    const link = document.createElement('a')
-    link.href = proxyUrl
-    link.download = (drawingTitle || 'storia') + '.mp4'
-    link.click()
+  const scaricaVideo = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const filename = (drawingTitle || 'storia') + '.mp4'
+      const response = await fetch(
+        `/api/drawings/download?url=${encodeURIComponent(videoUrl)}&filename=${encodeURIComponent(filename)}`,
+        { headers: { Authorization: `Bearer ${session.access_token}` } }
+      )
+      const blob = await response.blob()
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = filename
+      link.click()
+      URL.revokeObjectURL(link.href)
+    } catch (e) {
+      alert('Errore durante il salvataggio')
+    }
   }
 
   const reset = () => {

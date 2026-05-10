@@ -26,8 +26,7 @@ export default function Home({ user }) {
 
   const loadChildren = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
+      if (!user?.id) {
         setBambini([])
         return
       }

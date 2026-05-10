@@ -38,7 +38,7 @@ export default async function handler(req, res) {
       const existing = rows[0].token
       return res.status(200).json({
         token: existing,
-        url: `https://imaginaria-beryl.vercel.app/share/${existing}`,
+        url: `${process.env.APP_URL || `https://${req.headers.host}`}/share/${existing}`,
       })
     }
 
@@ -58,7 +58,7 @@ export default async function handler(req, res) {
     const shareToken = inserted[0].token
     return res.status(200).json({
       token: shareToken,
-      url: `https://imaginaria-beryl.vercel.app/share/${shareToken}`,
+      url: `${process.env.APP_URL || `https://${req.headers.host}`}/share/${shareToken}`,
     })
 
   } catch (err) {

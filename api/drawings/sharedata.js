@@ -31,8 +31,10 @@ export default async function handler(req, res) {
 
     const rendersRes = await supabase
       .from('renders')
-      .select('style, result_url, created_at')
+      .select('style, result_url, video_url, created_at')
       .eq('drawing_id', drawingId)
+      .eq('status', 'completed')
+      .not('result_url', 'is', null)
       .order('created_at', { ascending: false })
 
     const storieRes = await supabase

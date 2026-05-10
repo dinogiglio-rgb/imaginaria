@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 export default function Account() {
+  const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState(null)
   const [famiglia, setFamiglia] = useState(null)
@@ -16,7 +18,7 @@ export default function Account() {
   const loadData = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { window.location.href = '/'; return }
+      if (!user) { navigate('/'); return }
 
       const { data: profileData } = await supabase
         .from('profiles')
@@ -121,7 +123,7 @@ export default function Account() {
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
           <button
-            onClick={() => { window.location.href = '/' }}
+            onClick={() => { navigate('/') }}
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
               fontSize: '22px', color: '#888', padding: '4px 8px 4px 0', lineHeight: 1,
