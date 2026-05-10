@@ -53,13 +53,14 @@ async function checkUserAccess(user, { setUser, setLoading, setShowFamilySetup, 
     }
 
     // 3. Controlla whitelist
-    const { data: allowed } = await supabase
+    const { data: allowed, error: wErr } = await supabase
       .from('allowed_emails')
       .select('email')
       .eq('email', user.email)
-      .single()
+      .maybeSingle()
 
-    if (!allowed) {
+    // Se la tabella non esiste ancora (wErr), non bloccare l'accesso
+    if (!wErr && !allowed) {
       await supabase.auth.signOut()
       setUser(null)
       setShowFamilySetup(false)
@@ -108,8 +109,9 @@ async function checkUserAccess(user, { setUser, setLoading, setShowFamilySetup, 
 
   } catch (err) {
     console.error('Auth check error:', err)
-    // Qualsiasi errore imprevisto non deve mai bloccare l'app
-    setUser(null)
+    // Errore imprevisto (es. tabella mancante, rete) — NON fare logout.
+    // Meglio mostrare l'app con accesso limitato che buttare fuori l'utente.
+    setUser({ id: user.id, email: user.email })
     setShowFamilySetup(false)
     setLoading(false)
   }
