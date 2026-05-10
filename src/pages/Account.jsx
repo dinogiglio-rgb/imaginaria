@@ -17,8 +17,10 @@ export default function Account() {
 
   const loadData = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { navigate('/'); return }
+      // getSession() è sincrono da localStorage — non ha il problema di timing di getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) { navigate('/'); return }
+      const user = session.user
 
       const { data: profileData } = await supabase
         .from('profiles')
