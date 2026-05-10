@@ -17,21 +17,22 @@ export default function Account() {
 
   const loadData = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { navigate('/'); return }
+      const { data: { session } } = await supabase.auth.getSession()
+      const userId = session?.user?.id
+      if (!userId) return
 
       const { data: profileData } = await supabase
         .from('profiles')
         .select('display_name, email, role')
-        .eq('id', user.id)
+        .eq('id', userId)
         .single()
 
-      setProfile({ ...profileData, id: user.id, email: profileData?.email || user.email })
+      setProfile({ ...profileData, id: userId, email: profileData?.email || session.user.email })
 
       const { data: memberData } = await supabase
         .from('family_members')
         .select('family_id, role, families(name, owner_id)')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .maybeSingle()
 
       if (!memberData) { setLoading(false); return }
