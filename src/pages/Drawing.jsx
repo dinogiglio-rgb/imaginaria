@@ -43,17 +43,21 @@ export default function Drawing({ user }) {
   const analyzeTimerRef = useRef(null)
   const shareTimerRef = useRef(null)
   const isMounted3DRef = useRef(true)
+  const isMountedRef = useRef(true)
 
   useEffect(() => {
+    isMountedRef.current = true
     fetchDrawing()
     fetchBetaQuotas()
     return () => {
+      isMountedRef.current = false
       clearTimeout(analyzeTimerRef.current)
       clearTimeout(shareTimerRef.current)
     }
   }, [id])
 
   useEffect(() => {
+    isMounted3DRef.current = true
     return () => { isMounted3DRef.current = false }
   }, [])
 
@@ -176,7 +180,9 @@ export default function Drawing({ user }) {
       setStorieSalvate(storie || [])
 
       if (!data.ai_title && !data.ai_description) {
-        analyzeTimerRef.current = setTimeout(() => analyzeDrawing(data), 800)
+        analyzeTimerRef.current = setTimeout(() => {
+          if (isMountedRef.current) analyzeDrawing(data)
+        }, 800)
       }
     } catch (err) {
       console.error('Errore caricamento:', err)
@@ -203,16 +209,18 @@ export default function Drawing({ user }) {
       if (!res.ok) throw new Error('Analisi fallita')
       const result = await res.json()
 
-      setDrawing(prev => ({
-        ...prev,
-        ai_title: result.ai_title,
-        ai_description: result.ai_description,
-        ai_prompt_render: result.ai_prompt_render
-      }))
+      if (isMountedRef.current) {
+        setDrawing(prev => ({
+          ...prev,
+          ai_title: result.ai_title,
+          ai_description: result.ai_description,
+          ai_prompt_render: result.ai_prompt_render
+        }))
+      }
     } catch (err) {
       console.error('Errore analisi:', err)
     } finally {
-      setAnalyzing(false)
+      if (isMountedRef.current) setAnalyzing(false)
     }
   }
 
