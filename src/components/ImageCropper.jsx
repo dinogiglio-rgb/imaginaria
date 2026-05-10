@@ -204,13 +204,15 @@ export default function ImageCropper({ immagine, onConferma, onAnnulla }) {
   const [canvasSize, setCanvasSize] = useState({ w: 800, h: 600 })
   useEffect(() => {
     if (!containerRef.current) return
+    const el = containerRef.current
     const ro = new ResizeObserver(() => {
+      if (!containerRef.current) return
       setCanvasSize({
         w: containerRef.current.clientWidth,
         h: containerRef.current.clientHeight
       })
     })
-    ro.observe(containerRef.current)
+    ro.observe(el)
     return () => ro.disconnect()
   }, [])
 
