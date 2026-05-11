@@ -121,6 +121,13 @@ const statusResult = await fal.queue.status('fal-ai/triposr', { requestId: reque
         }, { onConflict: 'drawing_id,style' })
       }
 
+      if (drawing_id) {
+        await supabase
+          .from('drawings')
+          .update({ video_url: videoUrl })
+          .eq('id', drawing_id)
+      }
+
       return res.status(200).json({ status: 'completed', video_url: videoUrl })
     }
 

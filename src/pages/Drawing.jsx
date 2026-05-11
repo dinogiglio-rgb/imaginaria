@@ -36,6 +36,8 @@ export default function Drawing({ user }) {
   const [poll3DKey, setPoll3DKey] = useState(0)
   const [errore3DUrl, setErrore3DUrl] = useState(false)
   const [stileSceltoVideo, setStileSceltoVideo] = useState(null)
+  const [videoSalvato, setVideoSalvato] = useState(null)
+  const [mostraVideoSalvato, setMostraVideoSalvato] = useState(false)
   const [shareStato, setShareStato] = useState(null) // null | 'loading' | 'copied' | 'error'
   const [userRole, setUserRole] = useState(null)
   const [rendersOggi, setRendersOggi] = useState(0)
@@ -160,11 +162,13 @@ export default function Drawing({ user }) {
     try {
       const { data, error } = await supabase
         .from('drawings')
-        .select('*, renders(*)')
+        .select('*, renders(*), video_url')
         .eq('id', id)
         .single()
       if (error) throw error
       setDrawing(data)
+
+      if (data?.video_url) setVideoSalvato(data.video_url)
 
       const render3d = data?.renders?.find(r => r.style === '3d' && r.result_url)
       if (render3d?.result_url) {
@@ -707,6 +711,28 @@ export default function Drawing({ user }) {
           >
             <span style={{ fontSize: '1.3rem' }}>📖</span>
             Genera la storia magica
+          </button>
+        )}
+
+        {/* Bottone video salvato */}
+        {videoSalvato && (
+          <button
+            onClick={() => setMostraVideoSalvato(true)}
+            style={{
+              background: 'linear-gradient(135deg, #A084E8, #FF7F6A)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '50px',
+              padding: '12px 24px',
+              fontSize: '16px',
+              fontFamily: 'Inter, sans-serif',
+              fontWeight: 700,
+              cursor: 'pointer',
+              width: '100%',
+              marginBottom: '24px',
+            }}
+          >
+            ▶ Guarda il video
           </button>
         )}
 
@@ -1292,6 +1318,57 @@ export default function Drawing({ user }) {
           onClose={() => setMostraViewer(false)}
           onError={() => { setMostraViewer(false); setErrore3DUrl(true) }}
         />
+      )}
+
+      {mostraVideoSalvato && videoSalvato && (
+        <div
+          onClick={() => setMostraVideoSalvato(false)}
+          style={{
+            position: 'fixed', inset: 0,
+            background: 'rgba(0,0,0,0.85)',
+            zIndex: 1000,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+        >
+          <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: '500px' }}>
+            <video
+              src={videoSalvato}
+              controls
+              autoPlay
+              style={{ width: '100%', borderRadius: '16px' }}
+            />
+            <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+              <a
+                href={videoSalvato}
+                download="video-imaginaria.mp4"
+                style={{
+                  flex: 1, background: '#FF7F6A',
+                  color: 'white', border: 'none',
+                  borderRadius: '50px', padding: '12px',
+                  textAlign: 'center', textDecoration: 'none',
+                  fontFamily: 'Inter, sans-serif', fontWeight: 700,
+                }}
+              >
+                💾 Scarica
+              </a>
+              <button
+                onClick={() => setMostraVideoSalvato(false)}
+                style={{
+                  flex: 1, background: '#eee',
+                  border: 'none', borderRadius: '50px',
+                  padding: '12px', cursor: 'pointer',
+                  fontFamily: 'Inter, sans-serif', fontWeight: 600,
+                }}
+              >
+                ✕ Chiudi
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
