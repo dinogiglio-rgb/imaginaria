@@ -97,7 +97,12 @@ const statusResult = await fal.queue.status('fal-ai/triposr', { requestId: reque
       { requestId: request_id }
     )
 
-    if (status.status === 'COMPLETED') {
+    const isVideoCompleted = ['completed', 'COMPLETED', 'OK'].includes(status?.status)
+    const isVideoFailed = ['failed', 'FAILED', 'ERROR'].includes(status?.status)
+
+    console.log('VIDEO STATUS VALUE:', status?.status)
+
+    if (isVideoCompleted) {
       const result = await fal.queue.result(
         'fal-ai/kling-video/v1.6/standard/image-to-video',
         { requestId: request_id }
@@ -119,7 +124,7 @@ const statusResult = await fal.queue.status('fal-ai/triposr', { requestId: reque
       return res.status(200).json({ status: 'completed', video_url: videoUrl })
     }
 
-    if (status.status === 'FAILED') {
+    if (isVideoFailed) {
       return res.status(200).json({ status: 'failed', error: 'Generazione fallita su fal.ai' })
     }
 
