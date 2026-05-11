@@ -41,14 +41,17 @@ export default function ChildGallery({ user }) {
   const isMountedRef = useRef(true)
 
   useEffect(() => {
-    return () => { isMountedRef.current = false }
-  }, [])
-
-  useEffect(() => {
     if (!id) return
+    const safetyTimer = setTimeout(() => {
+      if (isMountedRef.current) setLoading(false)
+    }, 8000)
     fetchBambino()
     fetchDrawings()
     fetchUserProfile()
+    return () => {
+      clearTimeout(safetyTimer)
+      isMountedRef.current = false
+    }
   }, [id])
 
   const fetchUserProfile = async () => {
@@ -75,12 +78,14 @@ export default function ChildGallery({ user }) {
   }
 
   const fetchDrawings = async () => {
+    console.log('FETCH DRAWINGS - inizio')
     try {
       const { data, error } = await supabase
         .from('drawings')
         .select('*, renders(*)')
         .eq('child_id', id)
         .order('created_at', { ascending: false })
+      console.log('FETCH DRAWINGS - risultato:', data?.length, error)
       if (error) throw error
       if (isMountedRef.current) setDrawings(data || [])
     } catch (err) {
