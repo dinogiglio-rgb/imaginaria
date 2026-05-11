@@ -94,7 +94,7 @@ export default function Header({ user }) {
               {user?.email}
             </p>
             <button
-              onClick={() => { setMenuOpen(false); window.location.href = '/account' }}
+              onClick={() => { setMenuOpen(false); navigate('/account') }}
               style={{
                 width: '100%',
                 padding: '10px 12px',
