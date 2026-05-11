@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Header from '../components/Header'
@@ -38,6 +38,11 @@ export default function ChildGallery({ user }) {
   const [filtriAperti, setFiltriAperti] = useState(false)
   const [filtri, setFiltri] = useState({ categoria: '', ordinamento: 'recenti' })
   const [userProfile, setUserProfile] = useState(null)
+  const isMountedRef = useRef(true)
+
+  useEffect(() => {
+    return () => { isMountedRef.current = false }
+  }, [])
 
   useEffect(() => {
     if (!id) return
@@ -53,16 +58,20 @@ export default function ChildGallery({ user }) {
       .select('role, beta_expires_at')
       .eq('id', user.id)
       .single()
-    setUserProfile(data)
+    if (isMountedRef.current) setUserProfile(data)
   }
 
   const fetchBambino = async () => {
-    const { data } = await supabase
-      .from('children')
-      .select('*')
-      .eq('id', id)
-      .single()
-    setBambino(data)
+    try {
+      const { data } = await supabase
+        .from('children')
+        .select('*')
+        .eq('id', id)
+        .single()
+      if (isMountedRef.current) setBambino(data)
+    } catch (err) {
+      console.error('Errore bambino:', err)
+    }
   }
 
   const fetchDrawings = async () => {
@@ -73,11 +82,11 @@ export default function ChildGallery({ user }) {
         .eq('child_id', id)
         .order('created_at', { ascending: false })
       if (error) throw error
-      setDrawings(data || [])
+      if (isMountedRef.current) setDrawings(data || [])
     } catch (err) {
       console.error('Errore caricamento:', err)
     } finally {
-      setLoading(false)
+      if (isMountedRef.current) setLoading(false)
     }
   }
 
