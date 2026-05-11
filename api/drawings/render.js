@@ -188,7 +188,7 @@ export default async function handler(req, res) {
       finalPrompt = `${config.prompt}${subject ? ` The character is: ${subject}.` : ''}`;
     }
 
-    const FAL_TIMEOUT_MS = 90_000 // 90 secondi
+    const FAL_TIMEOUT_MS = 110_000
 
     const falPromise = fal.subscribe('fal-ai/flux-pro/kontext', {
       input: {
@@ -206,7 +206,7 @@ export default async function handler(req, res) {
     })
 
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Timeout: fal.ai non ha risposto in 90 secondi')), FAL_TIMEOUT_MS)
+      setTimeout(() => reject(new Error('Timeout: fal.ai non ha risposto in 110 secondi')), FAL_TIMEOUT_MS)
     )
 
     const result = await Promise.race([falPromise, timeoutPromise])
