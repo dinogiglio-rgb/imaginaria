@@ -28,7 +28,9 @@
       "Bash(git clone *)",
       "Bash(python3 *)",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\archo\\\\imaginaria\" -Recurse -Directory)",
-      "Bash(Select-Object -ExpandProperty FullName)"
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "PowerShell($bytes = [System.IO.File]::ReadAllBytes\\(\"C:\\\\Users\\\\archo\\\\imaginaria\\\\public\\\\logo-transparent.png\"\\); [Convert]::ToBase64String\\($bytes\\))",
+      "PowerShell(git *)"
     ]
   }
 }
