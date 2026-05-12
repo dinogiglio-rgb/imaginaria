@@ -53,16 +53,18 @@ export default async function handler(req, res) {
     const { drawingId, tipo, indicazioni } = req.body
     if (!drawingId) return res.status(400).json({ error: 'drawingId mancante' })
 
+    const indicazioniSafe = (indicazioni || '').trim().slice(0, 500)
+
     const { data: drawing, error: dbError } = await supabase
       .from('drawings')
       .select('*, children(*)')
       .eq('id', drawingId)
-      .single()
+      .maybeSingle()
 
     if (dbError || !drawing) return res.status(404).json({ error: 'Disegno non trovato' })
 
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 55000 })
-    const descrizione = indicazioni || drawing.ai_description || drawing.ai_title || 'un disegno di un bambino'
+    const descrizione = indicazioniSafe || drawing.ai_description || drawing.ai_title || 'un disegno di un bambino'
     const titolo = drawing.ai_title || 'il disegno'
     const contestoEta = buildContestoEta(drawing.children)
 

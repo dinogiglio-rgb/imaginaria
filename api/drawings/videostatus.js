@@ -100,8 +100,6 @@ const statusResult = await fal.queue.status('fal-ai/triposr', { requestId: reque
     const isVideoCompleted = ['completed', 'COMPLETED', 'OK'].includes(status?.status)
     const isVideoFailed = ['failed', 'FAILED', 'ERROR'].includes(status?.status)
 
-    console.log('VIDEO STATUS VALUE:', status?.status)
-
     if (isVideoCompleted) {
       const result = await fal.queue.result(
         'fal-ai/kling-video/v1.6/standard/image-to-video',

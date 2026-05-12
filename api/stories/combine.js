@@ -52,20 +52,26 @@ export default async function handler(req, res) {
 
     const { storyIds, indicazioni, titolo, personaggi, tema } = req.body
 
+    const indicazioniSafe = (indicazioni || '').trim().slice(0, 500)
+    const temaSafe = (tema || '').trim().slice(0, 200)
+    const personaggiSafe = Array.isArray(personaggi)
+      ? personaggi.map(p => String(p).trim().slice(0, 100)).filter(Boolean)
+      : []
+
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 50000 })
     let prompt = ''
 
-    if (personaggi && personaggi.length >= 2) {
+    if (personaggiSafe.length >= 2) {
       const { data: primoBambino } = await supabase
         .from('children')
         .select('*')
         .order('created_at', { ascending: true })
         .limit(1)
-        .single()
+        .maybeSingle()
       const contestoEta = buildContestoEta(primoBambino)
 
-      const listaPersonaggi = personaggi.join(', ')
-      prompt = `${contestoEta}Scrivi una storia per bambini di circa 400 parole con questi personaggi: ${listaPersonaggi}. Tema: ${tema}. Stile magico e poetico. Vai dritto alla storia senza introduzioni.`
+      const listaPersonaggi = personaggiSafe.join(', ')
+      prompt = `${contestoEta}Scrivi una storia per bambini di circa 400 parole con questi personaggi: ${listaPersonaggi}. Tema: ${temaSafe}. Stile magico e poetico. Vai dritto alla storia senza introduzioni.`
 
     } else if (storyIds && storyIds.length >= 2) {
       const { data: storie, error: dbError } = await supabase
@@ -78,7 +84,7 @@ export default async function handler(req, res) {
       const firstChildId = storie.find(s => s.drawings?.child_id)?.drawings?.child_id
       let bambino = null
       if (firstChildId) {
-        const { data } = await supabase.from('children').select('*').eq('id', firstChildId).single()
+        const { data } = await supabase.from('children').select('*').eq('id', firstChildId).maybeSingle()
         bambino = data
       }
       const contestoEta = buildContestoEta(bambino)
@@ -87,7 +93,7 @@ export default async function handler(req, res) {
         `STORIA ${i + 1} — "${s.drawings?.ai_title || 'Senza titolo'}": ${s.testo.slice(0, 300)}`
       ).join('\n\n')
 
-      const promptIndicazioni = indicazioni ? ` Indicazioni: "${indicazioni}".` : ''
+      const promptIndicazioni = indicazioniSafe ? ` Indicazioni: "${indicazioniSafe}".` : ''
 
       prompt = `${contestoEta}Scrivi una storia per bambini di circa 400 parole che unisce questi personaggi in un'unica avventura magica:
 

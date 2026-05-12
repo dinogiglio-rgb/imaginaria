@@ -169,6 +169,14 @@ export default async function handler(req, res) {
       const { userId, userEmail } = req.body
       if (!userId || !userEmail) return res.status(400).json({ error: 'userId e userEmail richiesti' })
 
+      // 1. Elimina da Supabase Auth PRIMA — se fallisce, il DB non viene toccato
+      const { error: authDeleteError } = await supabase.auth.admin.deleteUser(userId)
+      if (authDeleteError) {
+        console.error('Auth delete fallita per userId:', userId, 'email:', userEmail, authDeleteError.message)
+        throw new Error('Eliminazione autenticazione fallita: ' + authDeleteError.message)
+      }
+
+      // 2. Solo se Auth delete ha avuto successo, elimina i dati dal DB
       const { data: children } = await supabase
         .from('children')
         .select('id')
@@ -198,8 +206,6 @@ export default async function handler(req, res) {
       await supabase.from('allowed_emails').delete().eq('email', userEmail)
       await supabase.from('beta_requests').delete().eq('email', userEmail)
       await supabase.from('profiles').delete().eq('id', userId)
-
-      await supabase.auth.admin.deleteUser(userId)
 
       return res.status(200).json({ success: true })
     }

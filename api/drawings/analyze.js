@@ -18,13 +18,15 @@ export default async function handler(req, res) {
     const { drawingId, indicazioni } = req.body
     if (!drawingId) return res.status(400).json({ error: 'drawingId mancante' })
 
+    const indicazioniSafe = (indicazioni || '').trim().slice(0, 500)
+
     let promptTesto = ''
 
-    if (indicazioni && indicazioni.trim()) {
+    if (indicazioniSafe) {
       promptTesto = `Sei un assistente creativo e poetico che analizza disegni di bambini con meraviglia e amore.
 
 INFORMAZIONE FONDAMENTALE: L'autore del disegno (o chi lo conosce) ha indicato che:
-"${indicazioni}"
+"${indicazioniSafe}"
 
 Questo è ciò che il bambino ha VOLUTO disegnare. Devi usare questa informazione come base principale della tua analisi. Non inventare interpretazioni diverse — il bambino sa cosa ha disegnato lui.
 
@@ -55,12 +57,12 @@ Non aggiungere nulla prima o dopo il JSON.`
       .from('drawings')
       .select('*')
       .eq('id', drawingId)
-      .single()
+      .maybeSingle()
 
     if (dbError || !drawing) return res.status(404).json({ error: 'Disegno non trovato' })
     if (!drawing.original_url) return res.status(400).json({ error: 'Immagine non disponibile' })
 
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 50000 })
 
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',

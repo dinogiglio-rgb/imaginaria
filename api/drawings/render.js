@@ -96,7 +96,7 @@ export default async function handler(req, res) {
       .from('drawings')
       .select('id, ai_title, ai_description, ai_prompt_render, processed_url, original_url')
       .eq('id', drawing_id)
-      .single();
+      .maybeSingle();
 
     if (drawingError || !drawing) {
       return res.status(404).json({ error: 'Disegno non trovato' });
@@ -115,7 +115,7 @@ export default async function handler(req, res) {
         .eq('drawing_id', drawing_id)
         .eq('style', style)
         .eq('status', 'completed')
-        .single();
+        .maybeSingle();
 
       if (!existingRender?.result_url) {
         return res.status(400).json({ error: 'Nessun render completato trovato per questo stile.' });

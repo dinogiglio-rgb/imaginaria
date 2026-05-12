@@ -94,6 +94,7 @@ export default function Drawing({ user }) {
           },
           body: JSON.stringify({ type: '3d', request_id: request3DId, render_id: render3DId })
         })
+        if (!res.ok) throw new Error(`Errore server: ${res.status}`)
         const data = await res.json()
 
         if (!isMounted3DRef.current) { clearInterval(interval); return }
