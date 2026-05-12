@@ -1019,6 +1019,125 @@ function TabStatistiche({ session }) {
   )
 }
 
+// --- TAB FEEDBACK ---
+const FUNZIONALITA_LABELS = [
+  { campo: 'rating_upload',   label: '📸 Scatto e upload disegno' },
+  { campo: 'rating_analisi',  label: '🤖 Analisi AI' },
+  { campo: 'rating_render',   label: '✨ Render stilizzati' },
+  { campo: 'rating_video',    label: '🎬 Video animato' },
+  { campo: 'rating_3d',       label: '🎲 Modello 3D' },
+  { campo: 'rating_galleria', label: '📚 Galleria e album' },
+]
+
+function StelleFisse({ voto }) {
+  return (
+    <span style={{ display: 'inline-flex', gap: '2px' }}>
+      {[1, 2, 3, 4, 5].map(n => (
+        <span key={n} style={{ fontSize: '14px', color: n <= (voto || 0) ? '#FF7F6A' : '#ddd' }}>★</span>
+      ))}
+    </span>
+  )
+}
+
+function TabFeedback() {
+  const [feedbacks, setFeedbacks] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchFeedbacks()
+  }, [])
+
+  const fetchFeedbacks = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('feedbacks')
+        .select('*, profiles(display_name, email)')
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      setFeedbacks(data || [])
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) return <LoadingSpinner />
+
+  if (feedbacks.length === 0) {
+    return (
+      <p style={{ color: BRAND.muted, fontFamily: 'Inter, sans-serif', textAlign: 'center', marginTop: '32px' }}>
+        Nessun feedback ricevuto ancora.
+      </p>
+    )
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+      {feedbacks.map(fb => (
+        <div key={fb.id} style={{
+          backgroundColor: '#FAF9F6',
+          border: '1px solid #e0e0e0',
+          borderRadius: '16px',
+          padding: '20px',
+          marginBottom: '16px',
+        }}>
+          {/* Intestazione */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px', marginBottom: '14px' }}>
+            <div>
+              <div style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 700, fontSize: '15px', color: BRAND.text }}>
+                {fb.profiles?.display_name || '—'}
+              </div>
+              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '13px', color: BRAND.muted }}>
+                {fb.profiles?.email}
+              </div>
+            </div>
+            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: BRAND.muted, whiteSpace: 'nowrap' }}>
+              {fb.created_at ? new Date(fb.created_at).toLocaleDateString('it-IT') : '—'}
+            </div>
+          </div>
+
+          {/* Stelle per funzionalità */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
+            {FUNZIONALITA_LABELS.map(({ campo, label }) => (
+              fb[campo] != null && (
+                <div key={campo} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                  <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '13px', color: '#555' }}>{label}</span>
+                  <StelleFisse voto={fb[campo]} />
+                </div>
+              )
+            ))}
+          </div>
+
+          {/* Testo */}
+          {fb.testo && (
+            <p style={{
+              fontFamily: 'Inter, sans-serif', fontSize: '14px', color: '#444',
+              fontStyle: 'italic', margin: '0 0 8px 0', lineHeight: 1.5,
+              background: 'white', borderRadius: '10px', padding: '10px 14px',
+              border: '1px solid #e8e4df',
+            }}>
+              "{fb.testo}"
+            </p>
+          )}
+
+          {/* Note */}
+          {fb.note && (
+            <p style={{
+              fontFamily: 'Inter, sans-serif', fontSize: '13px', color: '#666',
+              margin: 0, lineHeight: 1.5,
+              background: 'white', borderRadius: '10px', padding: '10px 14px',
+              border: '1px solid #e8e4df',
+            }}>
+              📝 {fb.note}
+            </p>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function LoadingSpinner() {
   return (
     <div style={{ display: 'flex', justifyContent: 'center', padding: '48px' }}>
@@ -1122,6 +1241,7 @@ export default function Admin({ user }) {
             onClick={() => setTab('richieste')}
           />
           <TabButton label="Statistiche" active={tab === 'statistiche'} onClick={() => setTab('statistiche')} />
+          <TabButton label="💬 Feedback" active={tab === 'feedback'} onClick={() => setTab('feedback')} />
         </div>
 
         {/* Contenuto tab */}
@@ -1130,6 +1250,14 @@ export default function Admin({ user }) {
         {tab === 'whitelist' && <TabWhitelist session={session} />}
         {tab === 'richieste' && <TabRichiesteBeta session={session} />}
         {tab === 'statistiche' && <TabStatistiche session={session} />}
+        {tab === 'feedback' && (
+          <>
+            <h2 style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 800, fontSize: '20px', color: '#A084E8', margin: '0 0 20px 0' }}>
+              💬 Feedback utenti
+            </h2>
+            <TabFeedback />
+          </>
+        )}
       </div>
     </div>
   )

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import FeedbackForm from '../components/FeedbackForm'
 
 export default function Account({ user }) {
   const navigate = useNavigate()
@@ -312,6 +313,11 @@ export default function Account({ user }) {
             )}
           </>
         )}
+        {/* Feedback */}
+        <hr style={{ border: 'none', borderTop: '1px solid #e0e0e0', margin: '8px 0 16px 0' }} />
+        <div style={cardStyle}>
+          <FeedbackForm userId={user.id} />
+        </div>
       </div>
     </div>
   )

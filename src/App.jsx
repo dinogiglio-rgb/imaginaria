@@ -13,6 +13,7 @@ import Share from './pages/Share'
 import FamilySetup from './components/FamilySetup'
 import AcceptInvite from './pages/AcceptInvite'
 import Account from './pages/Account'
+import PresentaPage from './pages/PresentaPage'
 
 const Spinner = () => (
   <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAF9F6' }}>
@@ -167,6 +168,7 @@ function AppContent() {
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/share/:token" element={<Share />} />
         <Route path="/invite/:token" element={<AcceptInvite />} />
+        <Route path="/presenta" element={<PresentaPage />} />
         <Route path="*" element={
           <LandingPage
             accessError={authError}
@@ -193,6 +195,7 @@ function AppContent() {
       <Route path="/account" element={<Account user={user} />} />
       <Route path="/share/:token" element={<Share />} />
       <Route path="/invite/:token" element={<AcceptInvite />} />
+      <Route path="/presenta" element={<PresentaPage />} />
     </Routes>
   )
 }
