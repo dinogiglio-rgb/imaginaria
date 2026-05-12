@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 export default function AcceptInvite() {
   const { token } = useParams()
+  const navigate = useNavigate()
   const [status, setStatus] = useState('loading')
   const handled = useRef(false)
 
@@ -136,7 +137,7 @@ export default function AcceptInvite() {
         <h1 style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 800, fontSize: '28px', color: '#FF7F6A', margin: '0 0 12px 0', textAlign: 'center' }}>
           Sei già in una famiglia!
         </h1>
-        <button onClick={() => { window.location.href = '/' }} style={primaryBtnStyle}>
+        <button onClick={() => { navigate('/') }} style={primaryBtnStyle}>
           Vai all'app →
         </button>
       </div>
@@ -150,7 +151,7 @@ export default function AcceptInvite() {
         <h1 style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 800, fontSize: '24px', color: '#888', margin: '0 0 12px 0', textAlign: 'center' }}>
           Invito non valido o già usato
         </h1>
-        <button onClick={() => { window.location.href = '/' }} style={{ ...primaryBtnStyle, backgroundColor: '#888' }}>
+        <button onClick={() => { navigate('/') }} style={{ ...primaryBtnStyle, backgroundColor: '#888' }}>
           Torna all'app →
         </button>
       </div>
@@ -163,7 +164,7 @@ export default function AcceptInvite() {
       <h1 style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 800, fontSize: '28px', color: '#A084E8', margin: '0 0 12px 0', textAlign: 'center' }}>
         Benvenuto nella famiglia!
       </h1>
-      <button onClick={() => { window.location.href = '/' }} style={primaryBtnStyle}>
+      <button onClick={() => { navigate('/') }} style={primaryBtnStyle}>
         Entra nell'app →
       </button>
     </div>

@@ -29,6 +29,7 @@ export default function RenderSection({ drawingId, hasAiPrompt, userRole, render
   const [editingStyle, setEditingStyle] = useState(null);
   const [refinementPrompt, setRefinementPrompt] = useState('');
   const [refinementBase, setRefinementBase] = useState('render');
+  const [erroreRender, setErroreRender] = useState('');
 
   useEffect(() => {
     if (!drawingId) return;
@@ -51,13 +52,17 @@ export default function RenderSection({ drawingId, hasAiPrompt, userRole, render
   }
 
   async function generaRender(style, isRefinement = false) {
+    setErroreRender('');
     if (!hasAiPrompt) {
-      alert('Analizza prima il disegno con l\'AI! 🤖');
+      setErroreRender('Analizza prima il disegno con l\'AI! 🤖');
       return;
     }
 
     setLoading(prev => ({ ...prev, [style]: true }));
-    if (isRefinement) setEditingStyle(null);
+    if (isRefinement) {
+      setEditingStyle(null);
+      setRefinementPrompt('');
+    }
 
     // Timeout client: se il backend non risponde in 100s, sblocca l'UI
     const controller = new AbortController();
@@ -86,7 +91,7 @@ export default function RenderSection({ drawingId, hasAiPrompt, userRole, render
       const data = await res.json();
 
       if (res.status === 403) {
-        alert(data.error || 'Hai raggiunto il limite beta, ci vediamo al lancio! 🚀');
+        setErroreRender(data.error || 'Hai raggiunto il limite beta, ci vediamo al lancio! 🚀');
         return;
       }
 
@@ -97,13 +102,13 @@ export default function RenderSection({ drawingId, hasAiPrompt, userRole, render
         setRefinementPrompt('');
         onRenderCompleted?.();
       } else {
-        alert(data.error || 'Errore nella generazione. Riprova!');
+        setErroreRender(data.error || 'Errore nella generazione. Riprova!');
       }
     } catch (err) {
       if (err.name === 'AbortError') {
-        alert('Generazione troppo lenta. fal.ai non ha risposto in tempo — riprova tra qualche istante.');
+        setErroreRender('Generazione troppo lenta. fal.ai non ha risposto in tempo — riprova tra qualche istante.');
       } else {
-        alert('Connessione interrotta. Riprova!');
+        setErroreRender('Connessione interrotta. Riprova!');
       }
     } finally {
       clearTimeout(timeoutId);
@@ -125,7 +130,7 @@ export default function RenderSection({ drawingId, hasAiPrompt, userRole, render
       link.click()
       URL.revokeObjectURL(link.href)
     } catch (e) {
-      alert('Errore durante il salvataggio')
+      setErroreRender('Errore durante il salvataggio')
     }
   }
 
@@ -152,6 +157,23 @@ export default function RenderSection({ drawingId, hasAiPrompt, userRole, render
               {rendersOggi}/10 render oggi
             </span>
           )}
+        </div>
+      )}
+
+      {/* Errore inline */}
+      {erroreRender && (
+        <div style={{
+          background: '#fff0ee', color: '#c0392b',
+          padding: '10px 16px', borderRadius: '12px',
+          marginBottom: '12px', fontSize: '14px',
+          fontFamily: 'Inter, sans-serif',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <span>⚠️ {erroreRender}</span>
+          <button onClick={() => setErroreRender('')}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', lineHeight: 1, padding: '0 0 0 8px' }}>
+            ✕
+          </button>
         </div>
       )}
 

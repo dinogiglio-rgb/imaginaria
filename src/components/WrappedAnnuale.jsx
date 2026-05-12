@@ -352,7 +352,9 @@ export default function WrappedAnnuale({ child, drawings, onClose }) {
       }
 
       case 'galleria': {
-        const img = yearData.renderGallery[galleryImgIndex]
+        const renderGallery = yearData.renderGallery
+        if (!renderGallery || renderGallery.length === 0) return null
+        const img = renderGallery[galleryImgIndex] || renderGallery[0]
         return (
           <div style={{
             width: '100%', height: '100%', backgroundColor: 'black',

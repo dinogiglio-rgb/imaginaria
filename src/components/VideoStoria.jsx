@@ -46,7 +46,8 @@ export default function VideoStoria({ renderUrl, storyText, drawingTitle, drawin
 
   const avviaVideo = async () => {
     if (!renderUrl) {
-      alert('Genera prima un render stilizzato!')
+      setErrore('Genera prima un render stilizzato!')
+      setFase('errore')
       return
     }
     setFase('avvio')

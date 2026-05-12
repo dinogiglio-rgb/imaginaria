@@ -36,6 +36,7 @@ export default function Drawing({ user }) {
   const [poll3DKey, setPoll3DKey] = useState(0)
   const [errore3DUrl, setErrore3DUrl] = useState(false)
   const [stileSceltoVideo, setStileSceltoVideo] = useState(null)
+  const [erroreDrawing, setErroreDrawing] = useState('')
   const [videoSalvato, setVideoSalvato] = useState(null)
   const [mostraVideoSalvato, setMostraVideoSalvato] = useState(false)
   const [videoDisponibili, setVideoDisponibili] = useState([])
@@ -351,7 +352,7 @@ export default function Drawing({ user }) {
 
     const renderUrl = renderRows?.[0]?.result_url
     if (!renderUrl || renderUrl.startsWith('pending:')) {
-      alert('Genera prima un render stilizzato!')
+      setErroreDrawing('Genera prima un render stilizzato!')
       return
     }
 
@@ -372,11 +373,11 @@ export default function Drawing({ user }) {
         setRequest3DId(data.requestId)
         setRender3DId(data.renderId || null)
       } else {
-        alert('Errore nella generazione 3D: ' + data.error)
+        setErroreDrawing('Errore nella generazione 3D: ' + data.error)
         setGenerando3D(false)
       }
     } catch (err) {
-      alert('Errore: ' + err.message)
+      setErroreDrawing('Errore: ' + err.message)
       setGenerando3D(false)
     }
     // Non c'è finally: generando3D rimane true finché il polling non completa
@@ -510,6 +511,23 @@ export default function Drawing({ user }) {
       </header>
 
       <div style={{ padding: '20px' }}>
+
+        {/* Banner errore inline */}
+        {erroreDrawing && (
+          <div style={{
+            background: '#fff0ee', color: '#c0392b',
+            padding: '12px 16px', borderRadius: '12px',
+            marginBottom: '16px',
+            fontFamily: 'Inter, sans-serif', fontSize: '14px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          }}>
+            <span>⚠️ {erroreDrawing}</span>
+            <button onClick={() => setErroreDrawing('')}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', lineHeight: 1, padding: '0 0 0 8px' }}>
+              ✕
+            </button>
+          </div>
+        )}
 
         {/* Bottone condivisione */}
         <button
