@@ -78,14 +78,12 @@ export default function ChildGallery({ user }) {
   }
 
   const fetchDrawings = async () => {
-    console.log('FETCH DRAWINGS - inizio')
     try {
       const { data, error } = await supabase
         .from('drawings')
         .select('*, renders(*)')
         .eq('child_id', id)
         .order('created_at', { ascending: false })
-      console.log('FETCH DRAWINGS - risultato:', data?.length, error)
       if (error) throw error
       if (isMountedRef.current) setDrawings(data || [])
     } catch (err) {

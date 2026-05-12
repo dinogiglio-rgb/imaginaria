@@ -38,6 +38,7 @@ export default function Drawing({ user }) {
   const [stileSceltoVideo, setStileSceltoVideo] = useState(null)
   const [videoSalvato, setVideoSalvato] = useState(null)
   const [mostraVideoSalvato, setMostraVideoSalvato] = useState(false)
+  const [videoDisponibili, setVideoDisponibili] = useState([])
   const [shareStato, setShareStato] = useState(null) // null | 'loading' | 'copied' | 'error'
   const [userRole, setUserRole] = useState(null)
   const [rendersOggi, setRendersOggi] = useState(0)
@@ -168,7 +169,13 @@ export default function Drawing({ user }) {
       if (error) throw error
       setDrawing(data)
 
+      const vids = (data?.renders || [])
+        .filter(r => r.video_url && r.status === 'completed')
+        .map(r => ({ style: r.style, url: r.video_url }))
+      setVideoDisponibili(vids)
+
       if (data?.video_url) setVideoSalvato(data.video_url)
+      else if (vids.length > 0) setVideoSalvato(vids[0].url)
 
       const render3d = data?.renders?.find(r => r.style === '3d' && r.result_url)
       if (render3d?.result_url) {
@@ -715,24 +722,21 @@ export default function Drawing({ user }) {
         )}
 
         {/* Bottone video salvato */}
-        {videoSalvato && (
+        {(videoSalvato || videoDisponibili.length > 0) && (
           <button
             onClick={() => setMostraVideoSalvato(true)}
             style={{
               background: 'linear-gradient(135deg, #A084E8, #FF7F6A)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '50px',
-              padding: '12px 24px',
-              fontSize: '16px',
-              fontFamily: 'Inter, sans-serif',
-              fontWeight: 700,
-              cursor: 'pointer',
-              width: '100%',
-              marginBottom: '24px',
+              color: 'white', border: 'none',
+              borderRadius: '50px', padding: '12px 24px',
+              fontSize: '16px', fontFamily: 'Inter, sans-serif',
+              fontWeight: 700, cursor: 'pointer',
+              width: '100%', marginBottom: '24px',
             }}
           >
-            ▶ Guarda il video
+            🎬 {videoDisponibili.length > 1
+              ? `Guarda i video (${videoDisponibili.length})`
+              : 'Guarda il video'}
           </button>
         )}
 
@@ -1320,25 +1324,42 @@ export default function Drawing({ user }) {
         />
       )}
 
-      {mostraVideoSalvato && videoSalvato && (
+      {mostraVideoSalvato && (
         <div
           onClick={() => setMostraVideoSalvato(false)}
           style={{
             position: 'fixed', inset: 0,
             background: 'rgba(0,0,0,0.85)',
-            zIndex: 1000,
-            display: 'flex',
+            zIndex: 1000, display: 'flex',
             flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
+            alignItems: 'center', justifyContent: 'center',
             padding: '20px'
           }}
         >
           <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: '500px' }}>
+            {videoDisponibili.length > 1 && (
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                {videoDisponibili.map(v => (
+                  <button key={v.style}
+                    onClick={() => setVideoSalvato(v.url)}
+                    style={{
+                      background: videoSalvato === v.url ? '#FF7F6A' : '#333',
+                      color: 'white', border: 'none',
+                      borderRadius: '50px', padding: '6px 16px',
+                      cursor: 'pointer', fontFamily: 'Inter, sans-serif',
+                    }}
+                  >
+                    {v.style === 'cartoon' ? '🎨 Cartoon'
+                      : v.style === 'toy' ? '🧸 Toy'
+                      : '📷 Realistic'}
+                  </button>
+                ))}
+              </div>
+            )}
             <video
+              key={videoSalvato}
               src={videoSalvato}
-              controls
-              autoPlay
+              controls autoPlay
               style={{ width: '100%', borderRadius: '16px' }}
             />
             <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
@@ -1347,9 +1368,9 @@ export default function Drawing({ user }) {
                 download="video-imaginaria.mp4"
                 style={{
                   flex: 1, background: '#FF7F6A',
-                  color: 'white', border: 'none',
-                  borderRadius: '50px', padding: '12px',
-                  textAlign: 'center', textDecoration: 'none',
+                  color: 'white', borderRadius: '50px',
+                  padding: '12px', textAlign: 'center',
+                  textDecoration: 'none',
                   fontFamily: 'Inter, sans-serif', fontWeight: 700,
                 }}
               >
@@ -1358,10 +1379,9 @@ export default function Drawing({ user }) {
               <button
                 onClick={() => setMostraVideoSalvato(false)}
                 style={{
-                  flex: 1, background: '#eee',
-                  border: 'none', borderRadius: '50px',
-                  padding: '12px', cursor: 'pointer',
-                  fontFamily: 'Inter, sans-serif', fontWeight: 600,
+                  flex: 1, background: '#eee', border: 'none',
+                  borderRadius: '50px', padding: '12px',
+                  cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 600,
                 }}
               >
                 ✕ Chiudi
