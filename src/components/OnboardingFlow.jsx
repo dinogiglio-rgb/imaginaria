@@ -22,6 +22,7 @@ export default function OnboardingFlow({ user, onComplete }) {
   const [gender, setGender] = useState(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  const [familyId, setFamilyId] = useState(null)
 
   // created child
   const [childId, setChildId] = useState(null)
@@ -33,6 +34,15 @@ export default function OnboardingFlow({ user, onComplete }) {
     const t = setTimeout(() => setVisible(true), 30)
     return () => clearTimeout(t)
   }, [step])
+
+  useEffect(() => {
+    supabase
+      .from('family_members')
+      .select('family_id')
+      .eq('user_id', user.id)
+      .single()
+      .then(({ data }) => { if (data?.family_id) setFamilyId(data.family_id) })
+  }, [])
 
   // step 0 auto-advance after 2500ms
   useEffect(() => {
@@ -49,26 +59,34 @@ export default function OnboardingFlow({ user, onComplete }) {
   async function handleSubmit(e) {
     e.preventDefault()
     if (!name.trim() || !birthDate || !gender) return
-    setSaving(true)
-    setError(null)
-
-    const { data, error: err } = await supabase
-      .from('children')
-      .insert({ name: name.trim(), birth_date: birthDate, gender, created_by: user.id })
-      .select('id, name')
-      .limit(1)
-
-    setSaving(false)
-    if (err) {
-      setError('Qualcosa è andato storto. Riprova.')
+    if (!familyId) {
+      setError('Errore: famiglia non trovata. Ricarica la pagina e riprova.')
       return
     }
-    const child = data?.[0]
-    if (child) {
-      setChildId(child.id)
-      setChildName(child.name)
+    setSaving(true)
+    setError(null)
+    try {
+      const { data, error: err } = await supabase
+        .from('children')
+        .insert({ name: name.trim(), birth_date: birthDate, gender: gender.toLowerCase(), created_by: user.id, family_id: familyId })
+        .select('id, name')
+        .limit(1)
+
+      if (err) {
+        setError('Qualcosa è andato storto. Riprova.')
+        return
+      }
+      const child = data?.[0]
+      if (child) {
+        setChildId(child.id)
+        setChildName(child.name)
+      }
+      goToStep(2)
+    } catch {
+      setError('Errore di rete. Controlla la connessione e riprova.')
+    } finally {
+      setSaving(false)
     }
-    goToStep(2)
   }
 
   const enterStyle = {

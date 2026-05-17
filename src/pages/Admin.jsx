@@ -108,8 +108,19 @@ function TabBambini({ session }) {
   const [salvando, setSalvando] = useState(false)
   const [eliminando, setEliminando] = useState(null)
   const [nuovoBambino, setNuovoBambino] = useState({ nome: '', birthDate: '', gender: '' })
+  const [familyId, setFamilyId] = useState(null)
+  const [saveError, setSaveError] = useState(null)
 
   useEffect(() => { fetchBambini() }, [])
+
+  useEffect(() => {
+    supabase
+      .from('family_members')
+      .select('family_id')
+      .eq('user_id', session.user.id)
+      .single()
+      .then(({ data }) => { if (data?.family_id) setFamilyId(data.family_id) })
+  }, [])
 
   const fetchBambini = async () => {
     try {
@@ -142,15 +153,21 @@ function TabBambini({ session }) {
 
   const salva = async () => {
     if (!nuovoBambino.nome.trim() || !nuovoBambino.birthDate || !nuovoBambino.gender) return
+    if (!familyId) {
+      setSaveError('Errore: famiglia non trovata. Ricarica la pagina e riprova.')
+      return
+    }
     setSalvando(true)
+    setSaveError(null)
     try {
       const { data, error } = await supabase
         .from('children')
         .insert({
           name: nuovoBambino.nome.trim(),
           birth_date: nuovoBambino.birthDate,
-          gender: nuovoBambino.gender,
+          gender: nuovoBambino.gender.toLowerCase(),
           created_by: session.user.id,
+          family_id: familyId,
         })
         .select('*, drawings(count)')
         .single()
@@ -160,6 +177,7 @@ function TabBambini({ session }) {
       setFormAperto(false)
     } catch (err) {
       console.error(err)
+      setSaveError('Errore nel salvataggio. Riprova.')
     } finally {
       setSalvando(false)
     }
@@ -263,6 +281,11 @@ function TabBambini({ session }) {
           >
             {salvando ? 'Salvataggio...' : 'Salva'}
           </button>
+          {saveError && (
+            <p style={{ color: '#FF4444', fontFamily: 'Inter, sans-serif', fontSize: '13px', margin: 0 }}>
+              {saveError}
+            </p>
+          )}
         </div>
       )}
 
